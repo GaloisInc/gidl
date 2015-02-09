@@ -1,0 +1,32 @@
+name:                gidl
+version:             0.1.0.0
+license:             AllRightsReserved
+license-file:        LICENSE
+author:              Pat Hickey
+maintainer:          pat@galois.com
+copyright:           2015 Galois Inc
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     Gidl,
+                       Gidl.Parse,
+                       Gidl.Types,
+                       Gidl.Types.AST,
+                       Gidl.Types.Base
+
+  build-depends:       base >=4.7 && <4.8,
+                       parsec,
+                       transformers
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -Wall
+
+executable             gidl-test
+  main-is:             Test.hs
+  hs-source-dirs:      tests
+  build-depends:       base >= 4.6,
+                       gidl
+
+  default-language:    Haskell2010
+  ghc-options:         -Wall

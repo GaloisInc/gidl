@@ -1,0 +1,7 @@
+(def-newtype time_micros_t sint64_t)
+(def-enum armed_t
+ ((disarmed 0)
+  (armed 1)))
+(def-struct heartbeat_t
+ ((time time_micros_t)
+  (armed armed_t)))
