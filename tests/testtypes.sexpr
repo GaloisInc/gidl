@@ -11,10 +11,6 @@
  ((time time_micros_t)
   (armed armed_t)))
 
--- Bug: if you mistype the following, it quits parsing the file at that line
--- and does not throw an error.
--- (def-newtype some_t sint32)
-
 (def-newtype lat_t sint32_t)
 (def-newtype lon_t sint32_t)
 
@@ -31,6 +27,8 @@
  ((lat lat_t)
   (lon lon_t)
   (alt meters_t)))
+
+(def-newtype waypoint_t coordinate_t)
 
 -- Todo: the following interface syntax and semantics are a strawman.
 -- Interfaces have methods that are either streams or attrs.

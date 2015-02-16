@@ -1,17 +1,14 @@
 
 module Gidl.Types.AST where
 
-import Data.Monoid
-
 type Identifier = String
 type TypeName = String
 data TypeEnv
   = TypeEnv [(TypeName, Type)]
   deriving (Eq, Show)
 
-instance Monoid TypeEnv where
-  (TypeEnv a) `mappend` (TypeEnv b) = TypeEnv (a ++ b)
-  mempty = TypeEnv []
+emptyTypeEnv :: TypeEnv
+emptyTypeEnv = TypeEnv []
 
 data Type
   = StructType Struct
