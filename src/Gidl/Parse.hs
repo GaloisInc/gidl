@@ -1,6 +1,7 @@
 
 module Gidl.Parse where
 
+import Data.List
 import Data.Functor.Identity
 import Control.Monad
 import Text.Parsec.Prim
@@ -142,12 +143,25 @@ tEnumDecl = tList $ do
   tIdentifier "def-enum"
   tWhiteSpace
   n <- tSymbol
-  -- XXX specify bit width, optionally
+  w  <- optionMaybe (try tInteger)
+  width <- case w of
+    Nothing -> return Bits32
+    Just 8 -> return  Bits8
+    Just 16 -> return Bits16
+    Just 32 -> return Bits32
+    Just 64 -> return Bits64
+    _ -> fail "Expected enum bit size to be 8, 16, 32, or 64"
+
   vs <- tList $ many1 $ tPair tSymbol tNatural
-  -- XXX check that symbols are unique, numbers are unique, numbers are
-  -- ascending
+  when (not_unique (map fst vs)) $
+    fail "enum keys were not unique"
+  when (not_unique (map snd vs)) $
+    fail "enum values were not unique"
   -- XXX make it possible to implicitly assign numbers
-  return (n, EnumType (EnumT Bits32 vs))
+  return (n, EnumType (EnumT width vs))
+
+not_unique :: (Eq a) => [a] -> Bool
+not_unique l = nub l /= l
 
 tPermission :: Parser a Perm
 tPermission = do
@@ -197,7 +211,8 @@ tInterfaceDecl = tList $ do
   n <- tSymbol
   tWhiteSpace
   ms <- tList (many1 tInterfaceMethod)
-  -- XXX require the names to be unique
+  when (not_unique (map fst ms)) $
+    fail "expected unique interface method names"
   tWhiteSpace
   ps <- optionMaybe (tList (many1 tKnownInterfaceName))
   -- XXX require the ms not shadow names in inherited interfaces

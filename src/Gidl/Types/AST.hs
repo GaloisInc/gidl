@@ -15,8 +15,6 @@ data Type
   | NewtypeType Newtype
   | EnumType EnumT
   | AtomType Atom
---  | MaybeType Type
---  | EitherType Type Type
   deriving (Eq, Show)
 
 data Atom

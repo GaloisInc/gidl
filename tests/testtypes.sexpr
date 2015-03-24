@@ -3,7 +3,14 @@
 
 -- comments should be haskell style, because we're suing parsec's haskell lexer
 
-(def-enum armed_t
+-- enums default to 32 bit width if you don't really care
+(def-enum mode_t
+ ((stabilize 0)
+  (auto 1)))
+
+-- or you can specify a width
+(def-enum armed_t 
+ 8
  ((disarmed 0)
   (armed 1)))
 
