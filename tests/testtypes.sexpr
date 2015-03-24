@@ -44,16 +44,16 @@
 -- to zero). they also implicitly define an attr $(steamname)-stream-rate,
 -- which permits changing the stream rate at runtime.
 
-(def-interface vehicle
+(def-interface vehicle_i
  ((heartbeat (stream 10 heartbeat_t))))
 
 -- Interfaces implement java-style inheritance. No shadowing of inherited method
 -- names permitted.
 
-(def-interface controllable-vehicle
+(def-interface controllable_vehicle_i
   ((current_waypoint (attr read      waypoint_t))
    (next_waypoint    (attr readwrite waypoint_t)))
-  (vehicle)) -- Inherits from interface vehicle
+  (vehicle_i)) -- Inherits from interface vehicle
 
 -- The idea here is that, when negotiating a gidl connection, the client can
 -- specify or negotiate what interface is supported.

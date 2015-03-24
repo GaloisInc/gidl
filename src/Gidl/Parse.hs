@@ -107,7 +107,7 @@ tStructBody :: Parser ParseEnv [(Identifier, TypeName)]
 tStructBody = tList (many1 (tWhiteSpace >> tStructRow))
   <?> "struct body"
 
-tStructDecl :: Parser ParseEnv (TypeName, Type)
+tStructDecl :: Parser ParseEnv (TypeName, TypeDescr)
 tStructDecl = tList $ do
   tIdentifier "def-struct"
   tWhiteSpace
@@ -115,7 +115,7 @@ tStructDecl = tList $ do
   b <- tStructBody
   return (n, StructType (Struct b))
 
-defineType :: (TypeName, Type) -> Parser ParseEnv ()
+defineType :: (TypeName, TypeDescr) -> Parser ParseEnv ()
 defineType (tn, t) = do
   te <- getTypeEnv
   case lookupTypeName tn te of
@@ -129,7 +129,7 @@ defineInterface (ina, i) = do
     Just _ -> fail ("interface named '" ++ ina ++ "' already exists")
     Nothing -> setInterfaceEnv (insertInterface ina i ie)
 
-tNewtypeDecl :: Parser ParseEnv (TypeName, Type)
+tNewtypeDecl :: Parser ParseEnv (TypeName, TypeDescr)
 tNewtypeDecl = tList $ do
   tIdentifier "def-newtype"
   tWhiteSpace
@@ -138,7 +138,7 @@ tNewtypeDecl = tList $ do
   c <- tKnownTypeName
   return (n, NewtypeType (Newtype c))
 
-tEnumDecl :: Parser ParseEnv (TypeName, Type)
+tEnumDecl :: Parser ParseEnv (TypeName, TypeDescr)
 tEnumDecl = tList $ do
   tIdentifier "def-enum"
   tWhiteSpace

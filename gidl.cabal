@@ -11,6 +11,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Gidl,
                        Gidl.Parse,
+                       Gidl.Interface,
                        Gidl.Interface.AST,
                        Gidl.Types,
                        Gidl.Types.AST,
