@@ -16,6 +16,7 @@ data Type t
   | NewtypeType (Newtype t)
   | EnumType EnumT
   | AtomType Atom
+  | VoidType
   deriving (Eq, Show)
 
 data Atom

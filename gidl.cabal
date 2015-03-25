@@ -13,11 +13,13 @@ library
                        Gidl.Parse,
                        Gidl.Interface,
                        Gidl.Interface.AST,
+                       Gidl.Schema,
                        Gidl.Types,
                        Gidl.Types.AST,
                        Gidl.Types.Base
 
   build-depends:       base >=4.7 && <4.8,
+                       hashable,
                        parsec,
                        transformers
   hs-source-dirs:      src

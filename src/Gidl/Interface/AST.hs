@@ -4,7 +4,7 @@ module Gidl.Interface.AST where
 import Gidl.Types.AST
 
 data InterfaceEnv
-  = InterfaceEnv [(InterfaceName, Interface)]
+  = InterfaceEnv [(InterfaceName, Interface InterfaceName TypeName)]
   deriving (Eq, Show)
 
 emptyInterfaceEnv :: InterfaceEnv
@@ -13,13 +13,13 @@ emptyInterfaceEnv = InterfaceEnv []
 type InterfaceName = String
 type MethodName = String
 
-data Interface
-  = Interface [InterfaceName] [(MethodName, Method)]
+data Interface i t
+  = Interface [i] [(MethodName, Method t)]
   deriving (Eq, Show)
 
-data Method
-  = AttrMethod Perm TypeName
-  | StreamMethod Integer TypeName
+data Method t
+  = AttrMethod Perm t
+  | StreamMethod Integer t
   deriving (Eq, Show)
 
 data Perm

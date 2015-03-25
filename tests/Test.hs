@@ -4,6 +4,7 @@ import Control.Monad
 import Gidl.Types
 import Gidl.Interface
 import Gidl.Parse
+import Gidl.Schema
 
 main :: IO ()
 main = test "tests/testtypes.sexpr"
@@ -26,3 +27,8 @@ test f = do
         putStrLn (iname ++ ":")
         print (interfaceTypes iname ie te)
         print (interfaceParents i)
+        putStrLn "---"
+        let ir = interfaceDescrToRepr iname ie te
+        print (producerSchema ir)
+        print (consumerSchema ir)
+        putStrLn "---"

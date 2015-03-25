@@ -122,7 +122,7 @@ defineType (tn, t) = do
     Just _ -> fail ("type named '" ++ tn ++ "' already exists")
     Nothing -> setTypeEnv (insertType tn t te)
 
-defineInterface :: (InterfaceName, Interface) -> Parser ParseEnv ()
+defineInterface :: (InterfaceName, InterfaceDescr) -> Parser ParseEnv ()
 defineInterface (ina, i) = do
   ie <- getInterfaceEnv
   case lookupInterface ina ie of
@@ -175,7 +175,7 @@ tPermission = do
     "rw"        -> return ReadWrite
     _           -> fail "expected permission"
 
-tInterfaceMethod :: Parser ParseEnv (MethodName, Method)
+tInterfaceMethod :: Parser ParseEnv (MethodName, Method TypeName)
 tInterfaceMethod = tList $ do
   n <- tSymbol
   m <- choice [ try tAttr, try tStream ]
@@ -204,7 +204,7 @@ tKnownInterfaceName  = do
     Just _ -> return n
     Nothing -> fail ("expected a known interface name, got " ++ n)
 
-tInterfaceDecl :: Parser ParseEnv (InterfaceName, Interface)
+tInterfaceDecl :: Parser ParseEnv (InterfaceName, InterfaceDescr)
 tInterfaceDecl = tList $ do
   tIdentifier "def-interface"
   tWhiteSpace

@@ -8,6 +8,7 @@ module Gidl.Types
   , typeLeaves
   , typeDescrToRepr
   , sizeOf
+  , voidTypeRepr
   ) where
 
 import Data.List (nub)
@@ -35,11 +36,15 @@ typeLeaves (StructType (Struct s)) = nub (map snd s)
 typeLeaves (NewtypeType (Newtype tn)) = [tn]
 typeLeaves (EnumType _) = []
 typeLeaves (AtomType _) = []
+typeLeaves VoidType = []
 
 
 type TypeDescr = Type TypeName
 data TypeRepr = TypeRepr TypeName (Type TypeRepr)
                 deriving (Eq, Show)
+
+voidTypeRepr :: TypeRepr
+voidTypeRepr = TypeRepr "void" VoidType
 
 -- invariant: TypeName exists in a well-formed TypeEnv
 typeDescrToRepr :: TypeName -> TypeEnv -> TypeRepr
@@ -52,6 +57,7 @@ typeDescrToRepr tn te = TypeRepr tn tr
           NewtypeType (Newtype (typeDescrToRepr ntn te))
         StructType (Struct s) ->
           StructType (Struct [(i, typeDescrToRepr stn te) | (i, stn) <- s])
+        VoidType -> VoidType
 
 
 sizeOf :: TypeRepr -> Integer
@@ -62,6 +68,7 @@ sizeOf (TypeRepr _ (AtomType (AtomInt bs))) = bitsSize bs
 sizeOf (TypeRepr _ (AtomType (AtomWord bs))) = bitsSize bs
 sizeOf (TypeRepr _ (AtomType AtomFloat)) = 4
 sizeOf (TypeRepr _ (AtomType AtomDouble)) = 8
+sizeOf (TypeRepr _ VoidType) = 0
 
 bitsSize :: Bits -> Integer
 bitsSize Bits8  = 1
