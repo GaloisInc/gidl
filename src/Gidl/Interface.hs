@@ -29,18 +29,16 @@ insertInterface iname i e@(InterfaceEnv ie) = case lookupInterface iname e of
 interfaceParents :: Interface i t -> [i]
 interfaceParents (Interface parents _) = parents
 
-interfaceTypes :: InterfaceName -> InterfaceEnv -> TypeEnv -> [TypeName]
-interfaceTypes iname ie te = nub (concatMap aux ms)
+interfaceTypes :: InterfaceRepr -> [TypeRepr]
+interfaceTypes ir@(InterfaceRepr iname i) = nub (concatMap aux ms)
   where
-  (Interface _ ms) = fromJust (lookupInterface iname ie)
+  (Interface _ ms) = i
   aux = typeLeaves
-      . fromJust
-      . (\tn -> lookupTypeName tn te)
-      . methodTN
+      . methodT
       . snd
-  methodTN :: Method TypeName -> TypeName
-  methodTN (AttrMethod _ tn) = tn
-  methodTN (StreamMethod _ tn) = tn
+  methodT :: Method TypeRepr -> Type TypeRepr
+  methodT (AttrMethod _ (TypeRepr _ t)) = t
+  methodT (StreamMethod _ (TypeRepr _ t)) = t
 
 
 data InterfaceRepr = InterfaceRepr InterfaceName (Interface InterfaceRepr TypeRepr)
