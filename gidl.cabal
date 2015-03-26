@@ -16,12 +16,16 @@ library
                        Gidl.Schema,
                        Gidl.Types,
                        Gidl.Types.AST,
-                       Gidl.Types.Base
+                       Gidl.Types.Base,
+                       Gidl.Backend.Haskell,
+                       Gidl.Backend.Haskell.Types
 
   build-depends:       base >=4.7 && <4.8,
                        hashable,
+                       mainland-pretty,
                        parsec,
-                       transformers
+                       transformers,
+                       ivory-artifact
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Wall
@@ -30,6 +34,7 @@ executable             gidl-test
   main-is:             Test.hs
   hs-source-dirs:      tests
   build-depends:       base >= 4.6,
+                       ivory-artifact,
                        gidl
 
   default-language:    Haskell2010

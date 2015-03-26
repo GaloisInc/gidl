@@ -1,10 +1,12 @@
 module Main where
 
+import Ivory.Artifact
 import Control.Monad
 import Gidl.Types
 import Gidl.Interface
 import Gidl.Parse
 import Gidl.Schema
+import Gidl.Backend.Haskell.Types
 
 main :: IO ()
 main = test "tests/testtypes.sexpr"
@@ -20,6 +22,10 @@ test f = do
       forM_ te' $ \(tn, t) -> do
         putStrLn (tn ++ ":")
         print (typeLeaves t)
+        printArtifact (typeModule (words "Sample IDL Haskell Types")
+                                  (typeDescrToRepr tn te))
+
+      {-
       putStrLn "---"
       print ie
       putStrLn "---"
@@ -32,3 +38,4 @@ test f = do
         print (producerSchema ir)
         print (consumerSchema ir)
         putStrLn "---"
+      -}
