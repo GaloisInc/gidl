@@ -16,18 +16,21 @@ typeModule modulepath tr@(TypeRepr _ td) =
   artifactText ((typeModuleName tr) ++ ".hs") $
   prettyLazyText 80 $
   stack
-    [ text "module"
+    [ text "{-# LANGUAGE RecordWildCards #-}"
+    , empty
+    , text "module"
       <+> tm (typeModuleName tr)
       <+> text "where"
     , empty
-    , stack $ map (importDecl tm)
-            $ nub
-            $ map importType
-            $ typeLeaves td
+    , stack (imports ++ [text "import Data.Serialize"])
     , empty
     , typeDecl typename td
     ]
   where
+  imports = map (importDecl tm)
+          $ nub
+          $ map importType
+          $ typeLeaves td
   typename = typeModuleName tr
   tm mname = mconcat $ punctuate dot
                      $ map text (modulepath ++ [mname])
@@ -67,6 +70,15 @@ userTypeModuleName = first_cap . u_to_camel
   u_to_camel (a:as) = a : u_to_camel as
   u_to_camel [] = []
 
+serializeInstance :: TypeName -> Doc
+serializeInstance tname = stack
+  [ text "instance Serialize" <+> text tname <+> text "where"
+  , indent 2 $ stack
+      [ text "put" <+> equals <+> text ("put" ++ tname)
+      , text "get" <+> equals <+> text ("get" ++ tname)
+      ]
+  ]
+
 typeDecl :: TypeName -> Type TypeRepr -> Doc
 typeDecl tname (StructType (Struct ss)) = stack
   [ text "data" <+> text tname <+> equals
@@ -74,16 +86,44 @@ typeDecl tname (StructType (Struct ss)) = stack
   , indent 4 $ encloseStack lbrace (rbrace <+> deriv) comma
       [ text i <+> colon <> colon <+> text (typeHaskellType t)
       | (i,t) <- ss ]
+  , empty
+  , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
+  , text ("put" ++ tname) <+> text tname <> text "{..}" <+> equals <+> text "do"
+  , indent 2 $ stack
+      [ text "put" <+> text i
+      | (i,_) <- ss ]
+  , empty
+  , text ("get" ++ tname) <+> colon <> colon <+> text "Get" <+> text tname
+  , text ("get" ++ tname) <+> equals <+> text "do"
+  , indent 2 $ stack $
+      [ text i <+> text "<- get"
+      | (i,_) <- ss ] ++
+      [ text "return" <+> text tname <> text "{..}" ]
+  , empty
+  , serializeInstance tname
   ]
   where deriv = typeDeriving ["Eq", "Show"]
+
 typeDecl tname (NewtypeType (Newtype n)) = stack
   [ text "newtype" <+> text tname <+> equals
   , indent 2 $ text tname <+> align
         (lbrace <+> text ("un" ++ tname) <+> text "::" <+>
          text (typeHaskellType n) </>
          rbrace <+> typeDeriving ["Eq", "Show"])
+  , empty
+  , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
+  , text ("put" ++ tname) <+> parens (text tname <+> text "a") <+> equals <+> text "put a"
+  , empty
+  , text ("get" ++ tname) <+> colon <> colon <+> text "Get" <+> text tname
+  , text ("get" ++ tname) <+> equals <+> text "do"
+  , indent 2 $ stack $
+      [ text "a" <+> text "<- get"
+      , text "return" <+> parens (text tname <+> text "a") ]
+  , empty
+  , serializeInstance tname
   ]
-typeDecl tname (EnumType (EnumT _ es)) = stack
+
+typeDecl tname (EnumType (EnumT s es)) = stack
   [ text "data" <+> text tname
   , indent 2 $ encloseStack equals deriv (text "|")
       [ text (userTypeModuleName i)
@@ -96,9 +136,36 @@ typeDecl tname (EnumType (EnumT _ es)) = stack
       [ text ("toEnum _ = error \"toEnum: invalid value for " ++ tname ++ "\"") ] ++
       [ text "fromEnum" <+> text (userTypeModuleName i) <+> equals <+> ppr e
       | (i,e) <- es ]
+  , empty 
+  , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
+  , stack
+      [ text ("put" ++ tname) <+> text (userTypeModuleName i) <+> equals <+> 
+          text "put" <> text (cerealSize s) <+> ppr e
+      | (i,e) <- es ]
+  , empty
+  , text ("get" ++ tname) <+> colon <> colon <+> text "Get" <+> text tname
+  , text ("get" ++ tname) <+> equals <+> text "do"
+  , indent 2 $ stack
+      [ text "a" <+> text "<- get" <> text (cerealSize s)
+      , text "case a of"
+      , indent 2 $ stack $
+          [ ppr e <+> text "-> return" <+> text (userTypeModuleName i)
+          | (i,e) <- es
+          ] ++ [text "_ -> fail \"invalid value in get"  <> text tname <> text"\"" ]
+      ]
+  , empty
+  , serializeInstance tname
   ]
   where deriv = typeDeriving ["Eq", "Show", "Ord"]
+
 typeDecl tn _ = error ("typeDecl: cannot create decl for built in type " ++ tn)
+
+cerealSize :: Bits -> String
+cerealSize Bits8  = "Word8"
+cerealSize Bits16 = "Word16be"
+cerealSize Bits32 = "Word32be"
+cerealSize Bits64 = "Word64be"
+
 
 typeDeriving :: [String] -> Doc
 typeDeriving cs = text "deriving" <+> parens (commasep (map text cs))
