@@ -8,6 +8,7 @@ import Gidl.Types
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
+-- invariant: only make a typeModule from a StructType, NewtypeType, or EnumType
 typeModule :: [String] -> TypeRepr -> Artifact
 typeModule modulepath tr@(TypeRepr _ td) =
   artifactPath (intercalate "/" modulepath) $
@@ -114,6 +115,12 @@ importType (TypeRepr _ (AtomType a)) =
     _ -> NoImport
 importType (TypeRepr _ VoidType) = NoImport
 importType (TypeRepr n _) = UserType n
+
+isUserDefined :: TypeRepr -> Bool
+isUserDefined tr = case importType tr of
+  UserType _ -> True
+  _ -> False
+
 
 importDecl :: (String -> Doc) -> ImportType -> Doc
 importDecl _ (LibraryType p) =

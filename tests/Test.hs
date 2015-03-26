@@ -6,11 +6,17 @@ import Gidl.Types
 import Gidl.Interface
 import Gidl.Parse
 import Gidl.Schema
-import Gidl.Backend.Haskell.Types
 import Gidl.Backend.Cabal
+import Gidl.Backend.Haskell.Types
+import Gidl.Backend.Haskell
 
 main :: IO ()
-main = test "tests/testtypes.sexpr"
+main = runHaskellBackend "tests/testtypes.sexpr"
+                         "gidl-haskell-backend-test"
+                         (words "Gidl Haskell Test")
+                         "tests/gidl-haskell-backend-test"
+
+  --test "tests/testtypes.sexpr"
 
 test :: FilePath -> IO ()
 test f = do
