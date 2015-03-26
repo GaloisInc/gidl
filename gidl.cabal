@@ -17,6 +17,7 @@ library
                        Gidl.Types,
                        Gidl.Types.AST,
                        Gidl.Types.Base,
+                       Gidl.Backend.Cabal,
                        Gidl.Backend.Haskell,
                        Gidl.Backend.Haskell.Types
 

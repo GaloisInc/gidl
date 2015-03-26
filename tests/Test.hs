@@ -7,6 +7,7 @@ import Gidl.Interface
 import Gidl.Parse
 import Gidl.Schema
 import Gidl.Backend.Haskell.Types
+import Gidl.Backend.Cabal
 
 main :: IO ()
 main = test "tests/testtypes.sexpr"
@@ -19,12 +20,17 @@ test f = do
     Right (te@(TypeEnv te'), ie@(InterfaceEnv ie')) -> do
       print te
       putStrLn "---"
-      forM_ te' $ \(tn, t) -> do
+      as <- forM te' $ \(tn, t) -> do
         putStrLn (tn ++ ":")
         print (typeLeaves t)
-        printArtifact (typeModule (words "Sample IDL Haskell Types")
-                                  (typeDescrToRepr tn te))
-
+        let a = typeModule (words "Sample IDL Haskell Types")
+                           (typeDescrToRepr tn te)
+        printArtifact a
+        return a
+      let c = cabalFileArtifact $ defaultCabalFile "sample-idl-haskell"
+                                    (map (filePathToPackage . artifactFileName) as)
+                                    []
+      printArtifact c
       {-
       putStrLn "---"
       print ie
