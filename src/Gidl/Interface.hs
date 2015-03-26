@@ -2,7 +2,7 @@
 module Gidl.Interface
   ( module Gidl.Interface.AST
   , InterfaceDescr
-  , InterfaceRepr
+  , InterfaceRepr(..)
   , interfaceDescrToRepr
   , lookupInterface
   , insertInterface

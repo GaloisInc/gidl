@@ -5,6 +5,7 @@ import Gidl.Parse
 import Gidl.Interface
 import Gidl.Backend.Cabal
 import Gidl.Backend.Haskell.Types
+import Gidl.Backend.Haskell.Interface
 
 import Ivory.Artifact
 
@@ -13,16 +14,19 @@ import System.Exit (exitFailure, exitSuccess)
 
 haskellBackend :: TypeEnv -> InterfaceEnv -> String -> [String] -> [Artifact]
 haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace =
-  cabalFileArtifact cf : (map (artifactPath "src") tmods)
+  cabalFileArtifact cf : (map (artifactPath "src") (tmods ++ imods))
   where
   tmods = [ typeModule (namespace ++ ["Types"]) tr
           | (tn, _t) <- te'
           , let tr = typeDescrToRepr tn te
           , isUserDefined tr
           ]
-
+  imods = [ interfaceModule (namespace ++ ["Interface"]) ir
+          | (iname, _i) <- ie'
+          , let ir = interfaceDescrToRepr iname ie te
+          ]
   cf = defaultCabalFile pkgname mods deps
-  mods = [ filePathToPackage (artifactFileName m) | m <- tmods]
+  mods = [ filePathToPackage (artifactFileName m) | m <- (tmods ++ imods)]
   deps = []
 
 

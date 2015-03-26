@@ -9,6 +9,7 @@ import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
 -- invariant: only make a typeModule from a StructType, NewtypeType, or EnumType
+-- i.e. when isUserDefined is true.
 typeModule :: [String] -> TypeRepr -> Artifact
 typeModule modulepath tr@(TypeRepr _ td) =
   artifactPath (intercalate "/" modulepath) $

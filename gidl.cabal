@@ -19,6 +19,7 @@ library
                        Gidl.Types.Base,
                        Gidl.Backend.Cabal,
                        Gidl.Backend.Haskell,
+                       Gidl.Backend.Haskell.Interface,
                        Gidl.Backend.Haskell.Types
 
   build-depends:       base >=4.7 && <4.8,
