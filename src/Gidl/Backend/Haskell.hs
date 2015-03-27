@@ -27,7 +27,7 @@ haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace =
           ]
   cf = defaultCabalFile pkgname mods deps
   mods = [ filePathToPackage (artifactFileName m) | m <- (tmods ++ imods)]
-  deps = [ "cereal" ]
+  deps = [ "cereal", "QuickCheck" ]
 
 
 runHaskellBackend :: FilePath -> String -> [String] -> FilePath -> IO ()

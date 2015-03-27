@@ -22,7 +22,10 @@ typeModule modulepath tr@(TypeRepr _ td) =
       <+> tm (typeModuleName tr)
       <+> text "where"
     , empty
-    , stack (imports ++ [text "import Data.Serialize"])
+    , stack (imports ++
+              [ text "import Data.Serialize"
+              , text "import qualified Test.QuickCheck as Q"
+              ])
     , empty
     , typeDecl typename td
     ]
@@ -79,6 +82,14 @@ serializeInstance tname = stack
       ]
   ]
 
+arbitraryInstance :: TypeName -> Doc
+arbitraryInstance tname = stack
+  [ text "instance Q.Arbitrary" <+> text tname <+> text "where"
+  , indent 2 $ stack
+      [ text "arbitrary" <+> equals <+> text ("arbitrary" ++ tname)
+      ]
+  ]
+
 typeDecl :: TypeName -> Type TypeRepr -> Doc
 typeDecl tname (StructType (Struct ss)) = stack
   [ text "data" <+> text tname <+> equals
@@ -101,6 +112,15 @@ typeDecl tname (StructType (Struct ss)) = stack
       [ text "return" <+> text tname <> text "{..}" ]
   , empty
   , serializeInstance tname
+  , empty
+  , text ("arbitrary" ++ tname) <+> colon <> colon <+> text "Q.Gen" <+> text tname
+  , text ("arbitrary" ++ tname) <+> equals <+> text "do"
+  , indent 2 $ stack $
+      [ text i <+> text "<- Q.arbitrary"
+      | (i,_) <- ss ] ++
+      [ text "return" <+> text tname <> text "{..}" ]
+  , empty
+  , arbitraryInstance tname
   ]
   where deriv = typeDeriving ["Eq", "Show"]
 
@@ -121,6 +141,13 @@ typeDecl tname (NewtypeType (Newtype n)) = stack
       , text "return" <+> parens (text tname <+> text "a") ]
   , empty
   , serializeInstance tname
+  , text ("arbitrary" ++ tname) <+> colon <> colon <+> text "Q.Gen" <+> text tname
+  , text ("arbitrary" ++ tname) <+> equals <+> text "do"
+  , indent 2 $ stack $
+      [ text "a" <+> text "<- Q.arbitrary"
+      , text "return" <+> parens (text tname <+> text "a") ]
+  , empty
+  , arbitraryInstance tname
   ]
 
 typeDecl tname (EnumType (EnumT s es)) = stack
@@ -155,6 +182,13 @@ typeDecl tname (EnumType (EnumT s es)) = stack
       ]
   , empty
   , serializeInstance tname
+  , empty
+  , text ("arbitrary" ++ tname) <+> colon <> colon <+> text "Q.Gen" <+> text tname
+  , text ("arbitrary" ++ tname) <+> equals
+  , indent 2 $ text "Q.elements" <+> encloseStack lbracket rbracket comma
+                                      [ text (userTypeModuleName i) | (i,_e) <- es ]
+  , empty
+  , arbitraryInstance tname
   ]
   where deriv = typeDeriving ["Eq", "Show", "Ord"]
 
