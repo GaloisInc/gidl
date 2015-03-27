@@ -17,8 +17,10 @@ create-sandbox:
 test: haskell-backend-test
 
 haskell-backend-test:
-	cabal run gidl-haskell-backend-test-gen
+	cabal run gidl -- -b haskell -i tests/example.idl -o tests/gidl-haskell-backend-test -p gidl-haskell-backend-test -n Gidl.Haskell.Test
 	make -C tests/gidl-haskell-backend-test create-sandbox
 	make -C tests/gidl-haskell-backend-test
 	make -C tests/gidl-haskell-backend-test test
 
+haskell-backend-test-clean:
+	-rm -rf tests/gidl-haskell-backend-test

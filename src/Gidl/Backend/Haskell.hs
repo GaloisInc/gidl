@@ -1,7 +1,6 @@
 module Gidl.Backend.Haskell where
 
 import Gidl.Types
-import Gidl.Parse
 import Gidl.Interface
 import Gidl.Backend.Cabal
 import Gidl.Backend.Haskell.Types
@@ -10,11 +9,10 @@ import Gidl.Backend.Haskell.Interface
 
 import Ivory.Artifact
 
-import Data.Maybe (catMaybes)
-import System.Exit (exitFailure, exitSuccess)
+import Data.Char (isSpace)
 
-haskellBackend :: TypeEnv -> InterfaceEnv -> String -> [String] -> [Artifact]
-haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace =
+haskellBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
+haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace_raw =
   [ cabalFileArtifact cf
   , makefile
   , artifactPath "tests" serializeTestMod
@@ -41,17 +39,12 @@ haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace =
   serializeTestMod = serializeTestModule namespace
                         [ interfaceDescrToRepr iname ie te | (iname, _i) <- ie']
 
+  namespace = dotwords namespace_raw
 
-runHaskellBackend :: FilePath -> String -> [String] -> FilePath -> IO ()
-runHaskellBackend idlfile pkgname namespace outdir = do
-  c <- readFile idlfile
-  case parseDecls c of
-    Left e -> print e >> exitFailure
-    Right (te, ie) -> do
-      let as = haskellBackend te ie pkgname namespace
-      es <- mapM (putArtifact outdir) as
-      case catMaybes es of
-        [] -> exitSuccess
-        ees -> putStrLn (unlines ees) >> exitFailure
 
+  dotwords :: String -> [String]
+  dotwords s = case dropWhile isDot s of
+    "" -> []
+    s' -> let  (w, s'') = break isDot s' in w : dotwords s''
+  isDot c = (c == '.') || isSpace c
 
