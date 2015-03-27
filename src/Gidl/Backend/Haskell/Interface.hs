@@ -40,7 +40,8 @@ interfaceModule modulepath ir =
               $ nub
               $ map importType
               $ interfaceTypes ir
-  extraimports = [ text "import Data.Serialize" ]
+  extraimports = [ text "import Data.Serialize"
+                 , text "import qualified Test.QuickCheck as Q" ]
 
 schemaDoc :: String -> String -> Schema -> Doc
 schemaDoc interfaceName schemaName (Schema [])     =
@@ -82,6 +83,18 @@ schemaDoc interfaceName schemaName (Schema schema) = stack
         ]
     , empty
     , serializeInstance typeName
+    , empty
+    , text ("arbitrary" ++ typeName) <+> colon <> colon <+> text "Q.Gen" <+> text typeName
+    , text ("arbitrary" ++ typeName) <+> equals
+    , indent 2 $ text "Q.oneof" <+> encloseStack lbracket rbracket comma
+        [ text "do" </> (indent 4 (stack
+           [ text "a <- Q.arbitrary"
+           , text "return" <+> parens (text (constructorName n) <+> text "a")
+           ]))
+        | (_, Message n _) <- schema
+        ]
+    , empty
+    , arbitraryInstance typeName
     ]
   where
   constructorName n = userTypeModuleName n ++ schemaName
