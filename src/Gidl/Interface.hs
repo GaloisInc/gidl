@@ -30,15 +30,12 @@ interfaceParents :: Interface i t -> [i]
 interfaceParents (Interface parents _) = parents
 
 interfaceTypes :: InterfaceRepr -> [TypeRepr]
-interfaceTypes ir@(InterfaceRepr iname i) = nub (concatMap aux ms)
+interfaceTypes ir@(InterfaceRepr iname i) = nub (map (methodT . snd) ms)
   where
-  (Interface _ ms) = i
-  aux = typeLeaves
-      . methodT
-      . snd
-  methodT :: Method TypeRepr -> Type TypeRepr
-  methodT (AttrMethod _ (TypeRepr _ t)) = t
-  methodT (StreamMethod _ (TypeRepr _ t)) = t
+  ms = interfaceMethods ir
+  methodT :: Method TypeRepr -> TypeRepr
+  methodT (AttrMethod _ tr) = tr
+  methodT (StreamMethod _ tr) = tr
 
 
 data InterfaceRepr = InterfaceRepr InterfaceName (Interface InterfaceRepr TypeRepr)

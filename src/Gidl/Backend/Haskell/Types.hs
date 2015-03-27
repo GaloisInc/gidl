@@ -136,7 +136,7 @@ typeDecl tname (EnumType (EnumT s es)) = stack
       [ text ("toEnum _ = error \"toEnum: invalid value for " ++ tname ++ "\"") ] ++
       [ text "fromEnum" <+> text (userTypeModuleName i) <+> equals <+> ppr e
       | (i,e) <- es ]
-  , empty 
+  , empty
   , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
   , stack
       [ text ("put" ++ tname) <+> text (userTypeModuleName i) <+> equals <+> 
@@ -200,7 +200,7 @@ importDecl _ NoImport = empty
 
 encloseStack :: Doc -> Doc -> Doc -> [Doc] -> Doc
 encloseStack l r p ds = case ds of
-  [] -> l </> r
+  [] -> empty -- l </> r
   [d] -> l <+> d </> r
   _ -> align (l <+> (folddoc (\a b -> a </> p <+> b) ds) </> r)
 
