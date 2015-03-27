@@ -14,7 +14,7 @@ import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
 interfaceModule :: [String] -> InterfaceRepr -> Artifact
-interfaceModule modulepath ir@(InterfaceRepr _ i) =
+interfaceModule modulepath ir =
   artifactPath (intercalate "/" modulepath) $
   artifactText ((ifModuleName ir) ++ ".hs") $
   prettyLazyText 80 $
@@ -63,7 +63,7 @@ schemaDoc interfaceName schemaName (Schema schema) = stack
             <+> text "put" <> text (cerealSize Bits32) <+> ppr h <+> text ">>"
             <+> text "put" <+> text "m"
         | (h, Message n _) <- schema ]
-
+    , empty
     , text ("get" ++ typeName) <+> colon <> colon <+> text "Get" <+> text typeName
     , text ("get" ++ typeName) <+> equals <+> text "do"
     , indent 2 $ stack

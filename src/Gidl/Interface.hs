@@ -30,7 +30,7 @@ interfaceParents :: Interface i t -> [i]
 interfaceParents (Interface parents _) = parents
 
 interfaceTypes :: InterfaceRepr -> [TypeRepr]
-interfaceTypes ir@(InterfaceRepr iname i) = nub (map (methodT . snd) ms)
+interfaceTypes ir = nub (map (methodT . snd) ms)
   where
   ms = interfaceMethods ir
   methodT :: Method TypeRepr -> TypeRepr
