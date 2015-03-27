@@ -14,3 +14,11 @@ create-sandbox:
 	cabal sandbox add-source $(IVORY_REPO)/ivory-artifact
 	cabal install --dependencies-only
 
+test: haskell-backend-test
+
+haskell-backend-test:
+	cabal run gidl-haskell-backend-test-gen
+	make -C tests/gidl-haskell-backend-test create-sandbox
+	make -C tests/gidl-haskell-backend-test
+	make -C tests/gidl-haskell-backend-test test
+

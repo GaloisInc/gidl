@@ -15,6 +15,16 @@ data CabalFile =
     , hs_source_dirs :: [String]
     , default_language :: String
     , ghc_options :: String
+    , tests :: [CabalTest]
+    } deriving (Eq, Show)
+
+data CabalTest =
+  CabalTest
+    { test_name :: String
+    , test_type :: String
+    , test_hs_source_dirs :: [String]
+    , test_main_is :: String
+    , test_build_depends :: [String]
     } deriving (Eq, Show)
 
 defaultCabalFile :: String -> [String] -> [String] -> CabalFile
@@ -27,6 +37,16 @@ defaultCabalFile name_ exposed_modules_ build_depends_ = CabalFile
   , hs_source_dirs = ["src"]
   , default_language = "Haskell2010"
   , ghc_options = "-Wall"
+  , tests = []
+  }
+
+defaultCabalTest :: String -> String -> [String] -> CabalTest
+defaultCabalTest name_ main_ build_depends_ = CabalTest
+  { test_name = name_
+  , test_type = "exitcode-stdio-1.0"
+  , test_hs_source_dirs = ["tests"]
+  , test_main_is = main_
+  , test_build_depends = "base >= 4.7" : build_depends_
   }
 
 cabalFileArtifact :: CabalFile -> Artifact
@@ -48,11 +68,36 @@ cabalFileArtifact CabalFile{..} = artifactText (name ++ ".cabal") $
       , text "default-language:" <+> text default_language
       , text "ghc-options:" <+> text ghc_options
       ]
+    , stack [ cabalTestDoc t | t <- tests ]
     ]
+
+cabalTestDoc :: CabalTest -> Doc
+cabalTestDoc CabalTest{..} =
+  text "Test-Suite" <+> text test_name </> indent 2 (stack
+    [ text "type:" <+> text test_type
+    , text "hs-source-dirs:" <+> sep (punctuate comma (map text test_hs_source_dirs))
+    , text "main-is:" <+> text test_main_is
+    , text "build-depends:" <+> align (stack (punctuate comma (map text test_build_depends)))
+    ])
 
 filePathToPackage :: String -> String
 filePathToPackage ('.':'h':'s':[]) = []
 filePathToPackage ('/':as) = '.' : filePathToPackage as
 filePathToPackage (a:as) = a : filePathToPackage as
 filePathToPackage [] = []
+
+makefile :: Artifact
+makefile = artifactText "Makefile" $
+  prettyLazyText 80 $ stack
+    [ text "default:"
+    , text "\tcabal build"
+    , empty
+    , text "create-sandbox:"
+    , text "\tcabal sandbox init"
+    , text "\tcabal install --enable-tests --dependencies-only"
+    , empty
+    , text "test:"
+    , text "\tcabal test"
+    , empty
+    ]
 

@@ -25,9 +25,9 @@ interfaceModule modulepath ir =
     , empty
     , stack $ typeimports ++ extraimports
     , empty
-    , schemaDoc (ifModuleName ir) "Producer" (producerSchema ir)
+    , schemaDoc (ifModuleName ir) (producerSchema ir)
     , empty
-    , schemaDoc (ifModuleName ir) "Consumer" (consumerSchema ir)
+    , schemaDoc (ifModuleName ir) (consumerSchema ir)
     ]
   where
   im mname = mconcat $ punctuate dot
@@ -43,11 +43,11 @@ interfaceModule modulepath ir =
   extraimports = [ text "import Data.Serialize"
                  , text "import qualified Test.QuickCheck as Q" ]
 
-schemaDoc :: String -> String -> Schema -> Doc
-schemaDoc interfaceName schemaName (Schema [])     =
+schemaDoc :: String -> Schema -> Doc
+schemaDoc interfaceName (Schema schemaName [])     =
     text "-- Cannot define" <+> text schemaName  <+> text "schema for"
         <+> text interfaceName <+> text "interface: schema is empty"
-schemaDoc interfaceName schemaName (Schema schema) = stack
+schemaDoc interfaceName (Schema schemaName schema) = stack
     [ text "-- Define" <+> text schemaName  <+> text "schema for"
         <+> text interfaceName <+> text "interface"
     , text "data" <+> text typeName

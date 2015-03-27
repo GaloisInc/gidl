@@ -5,6 +5,7 @@ import Gidl.Parse
 import Gidl.Interface
 import Gidl.Backend.Cabal
 import Gidl.Backend.Haskell.Types
+import Gidl.Backend.Haskell.Test
 import Gidl.Backend.Haskell.Interface
 
 import Ivory.Artifact
@@ -14,7 +15,12 @@ import System.Exit (exitFailure, exitSuccess)
 
 haskellBackend :: TypeEnv -> InterfaceEnv -> String -> [String] -> [Artifact]
 haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace =
-  cabalFileArtifact cf : (map (artifactPath "src") (tmods ++ imods))
+  [ cabalFileArtifact cf
+  , makefile
+  , artifactPath "tests" serializeTestMod
+  ] ++
+  [ artifactPath "src" m | m <- sourceMods
+  ]
   where
   tmods = [ typeModule (namespace ++ ["Types"]) tr
           | (tn, _t) <- te'
@@ -25,9 +31,15 @@ haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace =
           | (iname, _i) <- ie'
           , let ir = interfaceDescrToRepr iname ie te
           ]
-  cf = defaultCabalFile pkgname mods deps
-  mods = [ filePathToPackage (artifactFileName m) | m <- (tmods ++ imods)]
+  sourceMods = tmods ++ imods
+  cf = (defaultCabalFile pkgname cabalmods deps) { tests = [ serializeTest ] }
+  cabalmods = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
   deps = [ "cereal", "QuickCheck" ]
+
+  serializeTest = defaultCabalTest "serialize-test" "SerializeTest.hs"
+                      (pkgname:deps)
+  serializeTestMod = serializeTestModule namespace
+                        [ interfaceDescrToRepr iname ie te | (iname, _i) <- ie']
 
 
 runHaskellBackend :: FilePath -> String -> [String] -> FilePath -> IO ()

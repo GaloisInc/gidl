@@ -9,12 +9,12 @@ import Gidl.Interface
 type MsgId = Word32
 data Message = Message String TypeRepr
              deriving (Eq, Show)
-data Schema = Schema [(MsgId, Message)]
+data Schema = Schema String [(MsgId, Message)]
             deriving (Eq, Show)
 
 
 producerSchema :: InterfaceRepr -> Schema
-producerSchema ir = Schema [(mkMsgId m, m) | m <- messages ]
+producerSchema ir = Schema "Producer" [(mkMsgId m, m) | m <- messages ]
   where
   messages = concatMap mkMessages (interfaceMethods ir)
   mkMessages (streamname, (StreamMethod _ tr)) =
@@ -24,7 +24,7 @@ producerSchema ir = Schema [(mkMsgId m, m) | m <- messages ]
     [ Message (attrname ++ "_val") tr ]
 
 consumerSchema :: InterfaceRepr -> Schema
-consumerSchema ir = Schema [(mkMsgId m, m) | m <- messages ]
+consumerSchema ir = Schema "Consumer" [(mkMsgId m, m) | m <- messages ]
   where
   messages = concatMap mkMessages (interfaceMethods ir)
 
