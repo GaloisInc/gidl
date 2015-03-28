@@ -1,6 +1,6 @@
 name:                gidl
 version:             0.1.0.0
-license:             AllRightsReserved
+license:             BSD3
 license-file:        LICENSE
 author:              Pat Hickey
 maintainer:          pat@galois.com
