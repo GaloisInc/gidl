@@ -1,7 +1,7 @@
 # Gidl
 
 Gidl (for Galois Interface Description Language) is a simple IDL for
-describing structured types
+describing structured types.
 
 ## IDL format
 
