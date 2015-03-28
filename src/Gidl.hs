@@ -50,7 +50,7 @@ initialOpts = Opts
   { backend     = error (usage ["must specify a backend"])
   , idlpath     = error (usage ["must specify an idl file"])
   , outpath     = error (usage ["must specify an output path"])
-  , packagename = error  (usage ["must specify a package name"])
+  , packagename = error (usage ["must specify a package name"])
   , namespace   = ""
   , help        = False
   }
