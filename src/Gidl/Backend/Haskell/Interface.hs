@@ -19,7 +19,9 @@ interfaceModule modulepath ir =
   artifactText ((ifModuleName ir) ++ ".hs") $
   prettyLazyText 80 $
   stack
-    [ text "module"
+    [ text "{-# LANGUAGE DeriveDataTypeable #-}"
+    , empty
+    , text "module"
       <+> im (ifModuleName ir)
       <+> text "where"
     , empty
@@ -41,6 +43,8 @@ interfaceModule modulepath ir =
               $ map importType
               $ interfaceTypes ir
   extraimports = [ text "import Data.Serialize"
+                 , text "import Data.Typeable"
+                 , text "import Data.Data"
                  , text "import qualified Test.QuickCheck as Q" ]
 
 schemaDoc :: String -> Schema -> Doc
@@ -98,7 +102,7 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     ]
   where
   constructorName n = userTypeModuleName n ++ schemaName
-  deriv = text "deriving (Eq, Show)"
+  deriv = text "deriving (Eq, Show, Data, Typeable)"
   typeName = interfaceName ++ schemaName
 
 ifModuleName :: InterfaceRepr -> String

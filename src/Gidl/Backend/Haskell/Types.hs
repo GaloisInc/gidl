@@ -17,6 +17,7 @@ typeModule modulepath tr@(TypeRepr _ td) =
   prettyLazyText 80 $
   stack
     [ text "{-# LANGUAGE RecordWildCards #-}"
+    , text "{-# LANGUAGE DeriveDataTypeable #-}"
     , empty
     , text "module"
       <+> tm (typeModuleName tr)
@@ -24,6 +25,8 @@ typeModule modulepath tr@(TypeRepr _ td) =
     , empty
     , stack (imports ++
               [ text "import Data.Serialize"
+              , text "import Data.Typeable"
+              , text "import Data.Data"
               , text "import qualified Test.QuickCheck as Q"
               ])
     , empty
@@ -122,14 +125,14 @@ typeDecl tname (StructType (Struct ss)) = stack
   , empty
   , arbitraryInstance tname
   ]
-  where deriv = typeDeriving ["Eq", "Show"]
+  where deriv = typeDeriving ["Eq", "Show", "Data", "Typeable"]
 
 typeDecl tname (NewtypeType (Newtype n)) = stack
   [ text "newtype" <+> text tname <+> equals
   , indent 2 $ text tname <+> align
         (lbrace <+> text ("un" ++ tname) <+> text "::" <+>
          text (typeHaskellType n) </>
-         rbrace <+> typeDeriving ["Eq", "Show"])
+         rbrace <+> typeDeriving ["Eq", "Show", "Data", "Typeable"])
   , empty
   , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
   , text ("put" ++ tname) <+> parens (text tname <+> text "a") <+> equals <+> text "put a"
@@ -190,7 +193,7 @@ typeDecl tname (EnumType (EnumT s es)) = stack
   , empty
   , arbitraryInstance tname
   ]
-  where deriv = typeDeriving ["Eq", "Show", "Ord"]
+  where deriv = typeDeriving ["Eq", "Show", "Ord", "Data", "Typeable"]
 
 typeDecl tn _ = error ("typeDecl: cannot create decl for built in type " ++ tn)
 
