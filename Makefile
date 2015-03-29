@@ -1,5 +1,5 @@
 
-IVORY_REPO ?= ../smaccmpilot-build/ivory
+IVORY_REPO ?= ../ivory
 
 default:
 	cabal build
