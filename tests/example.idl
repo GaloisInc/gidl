@@ -35,6 +35,11 @@
   (lon lon_t)
   (alt meters_t)))
 
+(def-struct timed_coord_t
+ ((coord coordinate_t)
+  (time time_micros_t)))
+
+
 (def-newtype waypoint_t coordinate_t)
 
 -- Todo: the following interface syntax and semantics are a strawman.
@@ -52,7 +57,7 @@
 
 (def-interface controllable_vehicle_i
   ((current_waypoint (attr read      waypoint_t))
-   (next_waypoint    (attr readwrite waypoint_t)))
+   (next_waypoint    (attr readwrite timed_coord_t)))
   (vehicle_i)) -- Inherits from interface vehicle
 
 -- The idea here is that, when negotiating a gidl connection, the client can

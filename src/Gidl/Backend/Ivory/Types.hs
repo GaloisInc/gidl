@@ -3,7 +3,7 @@ module Gidl.Backend.Ivory.Types where
 
 import Data.Monoid
 import Data.List (intercalate, nub)
-import Data.Char (toUpper)
+import Data.Char (toUpper, toLower)
 import Gidl.Types
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
@@ -16,18 +16,20 @@ typeModule modulepath tr@(TypeRepr _ td) =
   artifactText ((typeModuleName tr) ++ ".hs") $
   prettyLazyText 80 $
   stack
-    [ text "{-# LANGUAGE RecordWildCards #-}"
-    , text "{-# LANGUAGE DeriveDataTypeable #-}"
+    [ text "{-# LANGUAGE DataKinds #-}"
+    , text "{-# LANGUAGE TypeOperators #-}"
+    , text "{-# LANGUAGE QuasiQuotes #-}"
+    , text "{-# LANGUAGE GeneralizedNewtypeDeriving #-}"
+    , text "{-# LANGUAGE FlexibleInstances #-}"
+    , text "{-# OPTIONS_GHC -fno-warn-orphans #-}"
     , empty
     , text "module"
       <+> tm (typeModuleName tr)
       <+> text "where"
     , empty
     , stack (imports ++
-              [ text "import Data.Serialize"
-              , text "import Data.Typeable"
-              , text "import Data.Data"
-              , text "import qualified Test.QuickCheck as Q"
+              [ text "import Ivory.Language"
+              , text "import Ivory.Serialize"
               ])
     , empty
     , typeDecl typename td
@@ -41,22 +43,22 @@ typeModule modulepath tr@(TypeRepr _ td) =
   tm mname = mconcat $ punctuate dot
                      $ map text (modulepath ++ [mname])
 
-typeHaskellType :: TypeRepr -> String
-typeHaskellType (TypeRepr tn (StructType _)) = userTypeModuleName tn
-typeHaskellType (TypeRepr tn (NewtypeType _)) = userTypeModuleName tn
-typeHaskellType (TypeRepr tn (EnumType _)) = userTypeModuleName tn
-typeHaskellType (TypeRepr _ (AtomType a)) = case a of
-  AtomInt Bits8  -> "Int8"
-  AtomInt Bits16 -> "Int16"
-  AtomInt Bits32 -> "Int32"
-  AtomInt Bits64 -> "Int64"
-  AtomWord Bits8  -> "Word8"
-  AtomWord Bits16 -> "Word16"
-  AtomWord Bits32 -> "Word32"
-  AtomWord Bits64 -> "Word64"
-  AtomFloat -> "Float"
-  AtomDouble -> "Double"
-typeHaskellType (TypeRepr _ VoidType) = "()"
+typeIvoryType :: TypeRepr -> String
+typeIvoryType (TypeRepr tn (StructType _)) = "Struct \"" ++ userTypeStructName tn ++ "\""
+typeIvoryType (TypeRepr tn (NewtypeType _)) = userTypeModuleName tn
+typeIvoryType (TypeRepr tn (EnumType _)) = userTypeModuleName tn
+typeIvoryType (TypeRepr _ (AtomType a)) = case a of
+  AtomInt Bits8  -> "Sint8"
+  AtomInt Bits16 -> "Sint16"
+  AtomInt Bits32 -> "Sint32"
+  AtomInt Bits64 -> "Sint64"
+  AtomWord Bits8  -> "Uint8"
+  AtomWord Bits16 -> "Uint16"
+  AtomWord Bits32 -> "Uint32"
+  AtomWord Bits64 -> "Uint64"
+  AtomFloat -> "IFloat"
+  AtomDouble -> "IDouble"
+typeIvoryType (TypeRepr _ VoidType) = "()" -- XXX this is gonna cause trouble buddy
 
 typeModuleName :: TypeRepr -> String
 typeModuleName (TypeRepr tn (StructType _)) = userTypeModuleName tn
@@ -66,143 +68,90 @@ typeModuleName (TypeRepr _ (AtomType _)) = error "do not take typeModuleName of 
 typeModuleName (TypeRepr _ VoidType) = error "do not take typeModuleName of a VoidType"
 
 userTypeModuleName :: String -> String
-userTypeModuleName = first_cap . u_to_camel
+userTypeModuleName = first_cap . userEnumValueName
   where
   first_cap (s:ss) = (toUpper s) : ss
   first_cap []     = []
+
+userEnumValueName :: String -> String
+userEnumValueName = first_lower . u_to_camel
+  where
+  first_lower (s:ss) = (toLower s) : ss
+  first_lower []     = []
   u_to_camel ('_':'t':[]) = []
   u_to_camel ('_':[]) = []
   u_to_camel ('_':a:as) = (toUpper a) : u_to_camel as
   u_to_camel (a:as) = a : u_to_camel as
   u_to_camel [] = []
 
-serializeInstance :: TypeName -> Doc
-serializeInstance tname = stack
-  [ text "instance Serialize" <+> text tname <+> text "where"
-  , indent 2 $ stack
-      [ text "put" <+> equals <+> text ("put" ++ tname)
-      , text "get" <+> equals <+> text ("get" ++ tname)
-      ]
-  ]
-
-arbitraryInstance :: TypeName -> Doc
-arbitraryInstance tname = stack
-  [ text "instance Q.Arbitrary" <+> text tname <+> text "where"
-  , indent 2 $ stack
-      [ text "arbitrary" <+> equals <+> text ("arbitrary" ++ tname)
-      ]
-  ]
+userTypeStructName :: String -> String
+userTypeStructName = first_lower . drop_t_suffix
+  where
+  first_lower (s:ss) = (toLower s) : ss
+  first_lower []     = []
+  drop_t_suffix []     = []
+  drop_t_suffix ('_':'t':[]) = []
+  drop_t_suffix (a:as) = a : drop_t_suffix as
 
 typeDecl :: TypeName -> Type TypeRepr -> Doc
-typeDecl tname (StructType (Struct ss)) = stack
-  [ text "data" <+> text tname <+> equals
-  , indent 2 $ text tname
-  , indent 4 $ encloseStack lbrace (rbrace <+> deriv) comma
-      [ text i <+> colon <> colon <+> text (typeHaskellType t)
+typeDecl tname td@(StructType (Struct ss)) = stack
+  [ text "[ivory|"
+  , text "struct" <+> structname
+  , indent 2 $ encloseStack lbrace rbrace semi
+      [ text i <+> colon <> colon <+> text "Stored" <+> text (typeIvoryType t) -- XXX AREA TYPE
       | (i,t) <- ss ]
+  , text "|]"
   , empty
-  , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
-  , text ("put" ++ tname) <+> text tname <> text "{..}" <+> equals <+> text "do"
+  , text (userEnumValueName tname) <> text "TypesModule :: Module"
+  , text (userEnumValueName tname) <> text "TypesModule" <+> equals
+    <+> text "package" <+> dquotes (structname <> text "_types") <+> text "$ do"
   , indent 2 $ stack
-      [ text "put" <+> text i
-      | (i,_) <- ss ]
-  , empty
-  , text ("get" ++ tname) <+> colon <> colon <+> text "Get" <+> text tname
-  , text ("get" ++ tname) <+> equals <+> text "do"
-  , indent 2 $ stack $
-      [ text i <+> text "<- get"
-      | (i,_) <- ss ] ++
-      [ text "return" <+> text tname <> text "{..}" ]
-  , empty
-  , serializeInstance tname
-  , empty
-  , text ("arbitrary" ++ tname) <+> colon <> colon <+> text "Q.Gen" <+> text tname
-  , text ("arbitrary" ++ tname) <+> equals <+> text "do"
-  , indent 2 $ stack $
-      [ text i <+> text "<- Q.arbitrary"
-      | (i,_) <- ss ] ++
-      [ text "return" <+> text tname <> text "{..}" ]
-  , empty
-  , arbitraryInstance tname
-  ]
-  where deriv = typeDeriving ["Eq", "Show", "Data", "Typeable"]
+      [ text "defStruct"
+        <+> parens (text "Proxy :: Proxy" <+> dquotes structname)
+      , text "depend serializeModule"
+      , stack is
+      ]
 
-typeDecl tname (NewtypeType (Newtype n)) = stack
+  ]
+  where
+  is = map userIModDependency $ nub $ typeLeaves td
+  structname = text (userTypeStructName tname)
+
+typeDecl tname (NewtypeType (Newtype n)) =
+  case baseType n of
+    TypeRepr _ (StructType _) -> stack
+      [ text "type" <+> text tname <+> equals <+> text (typeIvoryType (baseType n)) ]
+    _ -> stack
+      [ text "newtype" <+> text tname <+> equals
+      , indent 2 $ text tname <+> align
+            (lbrace <+> text ("un" ++ tname) <+> text "::" <+>
+             text (typeIvoryType n) </>
+             rbrace <+> typeDeriving (words "IvoryType IvoryVar IvoryExpr IvoryEq IvoryStore IvoryInit IvoryZeroVal"))
+      ]
+
+typeDecl tname (EnumType (EnumT s es)) = stack
   [ text "newtype" <+> text tname <+> equals
   , indent 2 $ text tname <+> align
         (lbrace <+> text ("un" ++ tname) <+> text "::" <+>
-         text (typeHaskellType n) </>
-         rbrace <+> typeDeriving ["Eq", "Show", "Data", "Typeable"])
+         text bt </>
+         rbrace <+> typeDeriving (words "IvoryType IvoryVar IvoryExpr IvoryEq IvoryStore IvoryInit IvoryZeroVal"))
   , empty
-  , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
-  , text ("put" ++ tname) <+> parens (text tname <+> text "a") <+> equals <+> text "put a"
-  , empty
-  , text ("get" ++ tname) <+> colon <> colon <+> text "Get" <+> text tname
-  , text ("get" ++ tname) <+> equals <+> text "do"
-  , indent 2 $ stack $
-      [ text "a" <+> text "<- get"
-      , text "return" <+> parens (text tname <+> text "a") ]
-  , empty
-  , serializeInstance tname
-  , text ("arbitrary" ++ tname) <+> colon <> colon <+> text "Q.Gen" <+> text tname
-  , text ("arbitrary" ++ tname) <+> equals <+> text "do"
-  , indent 2 $ stack $
-      [ text "a" <+> text "<- Q.arbitrary"
-      , text "return" <+> parens (text tname <+> text "a") ]
-  , empty
-  , arbitraryInstance tname
-  ]
-
-typeDecl tname (EnumType (EnumT s es)) = stack
-  [ text "data" <+> text tname
-  , indent 2 $ encloseStack equals deriv (text "|")
-      [ text (userTypeModuleName i)
-      | (i, _) <- es ]
-  , empty
-  , text "instance Enum" <+> text tname <+> text "where"
-  , indent 2 $ stack $
-      [ text "toEnum" <+> ppr e <+> equals <+> text (userTypeModuleName i)
-      | (i,e) <- es ] ++
-      [ text ("toEnum _ = error \"toEnum: invalid value for " ++ tname ++ "\"") ] ++
-      [ text "fromEnum" <+> text (userTypeModuleName i) <+> equals <+> ppr e
-      | (i,e) <- es ]
-  , empty
-  , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
   , stack
-      [ text ("put" ++ tname) <+> text (userTypeModuleName i) <+> equals <+> 
-          text "put" <> text (cerealSize s) <+> ppr e
+      [ stack
+        [ empty
+        , text (userEnumValueName i) <+> colon <> colon <+> text tname
+        , text (userEnumValueName i) <+> equals <+> text tname <+> ppr e
+        ]
       | (i,e) <- es ]
-  , empty
-  , text ("get" ++ tname) <+> colon <> colon <+> text "Get" <+> text tname
-  , text ("get" ++ tname) <+> equals <+> text "do"
-  , indent 2 $ stack
-      [ text "a" <+> text "<- get" <> text (cerealSize s)
-      , text "case a of"
-      , indent 2 $ stack $
-          [ ppr e <+> text "-> return" <+> text (userTypeModuleName i)
-          | (i,e) <- es
-          ] ++ [text "_ -> fail \"invalid value in get"  <> text tname <> text"\"" ]
-      ]
-  , empty
-  , serializeInstance tname
-  , empty
-  , text ("arbitrary" ++ tname) <+> colon <> colon <+> text "Q.Gen" <+> text tname
-  , text ("arbitrary" ++ tname) <+> equals
-  , indent 2 $ text "Q.elements" <+> encloseStack lbracket rbracket comma
-                                      [ text (userTypeModuleName i) | (i,_e) <- es ]
-  , empty
-  , arbitraryInstance tname
   ]
-  where deriv = typeDeriving ["Eq", "Show", "Ord", "Data", "Typeable"]
+  where
+  bt = case s of
+    Bits8 -> "Uint8"
+    Bits16 -> "Uint16"
+    Bits32 -> "Uint32"
+    Bits64 -> "Uint64"
 
 typeDecl tn _ = error ("typeDecl: cannot create decl for built in type " ++ tn)
-
-cerealSize :: Bits -> String
-cerealSize Bits8  = "Word8"
-cerealSize Bits16 = "Word16be"
-cerealSize Bits32 = "Word32be"
-cerealSize Bits64 = "Word64be"
-
 
 typeDeriving :: [String] -> Doc
 typeDeriving cs = text "deriving" <+> parens (commasep (map text cs))
@@ -213,11 +162,7 @@ data ImportType = LibraryType String
                 deriving (Eq, Show)
 
 importType :: TypeRepr -> ImportType
-importType (TypeRepr _ (AtomType a)) =
-  case a of
-    AtomWord _ -> LibraryType "Data.Word"
-    AtomInt _ -> LibraryType "Data.Int"
-    _ -> NoImport
+importType (TypeRepr _ (AtomType _)) = NoImport
 importType (TypeRepr _ VoidType) = NoImport
 importType (TypeRepr n _) = UserType n
 
@@ -226,6 +171,12 @@ isUserDefined tr = case importType tr of
   UserType _ -> True
   _ -> False
 
+
+userIModDependency :: TypeRepr -> Doc
+userIModDependency tr = case baseType tr of
+  (TypeRepr sn (StructType _)) ->
+    text "depend" <+> text (userTypeStructName sn) <> text "TypesModule"
+  _ -> empty
 
 importDecl :: (String -> Doc) -> ImportType -> Doc
 importDecl _ (LibraryType p) =

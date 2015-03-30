@@ -56,49 +56,9 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
         <+> text interfaceName <+> text "interface"
     , text "data" <+> text typeName
     , indent 2 $ encloseStack equals deriv (text "|")
-        [ text (constructorName n) <+> text (typeHaskellType t)
+        [ text (constructorName n) <+> text (typeIvoryType t)
         | (_, (Message n t)) <- schema
         ]
-    , empty
-    , text ("put" ++ typeName) <+> colon <> colon <+> text "Putter" <+> text typeName
-    , stack
-        [ text ("put" ++ typeName)
-            <+> parens (text (constructorName n) <+> text "m")
-            <+> equals
-            <+> text "put" <> text (cerealSize Bits32) <+> ppr h <+> text ">>"
-            <+> text "put" <+> text "m"
-        | (h, Message n _) <- schema ]
-    , empty
-    , text ("get" ++ typeName) <+> colon <> colon <+> text "Get" <+> text typeName
-    , text ("get" ++ typeName) <+> equals <+> text "do"
-    , indent 2 $ stack
-        [ text "a" <+> text "<- get" <> text (cerealSize Bits32)
-        , text "case a of"
-        , indent 2 $ stack $
-            [ ppr h <+> text "-> do" </> (indent 2 (stack
-                [ text "m <- get"
-                , text "return" <+> parens (text (constructorName n) <+> text "m")
-                ]))
-            | (h,Message n _) <- schema
-            ] ++
-            [ text "_ -> fail"
-              <+> dquotes (text "encountered unknown tag in get" <> text typeName)
-            ]
-        ]
-    , empty
-    , serializeInstance typeName
-    , empty
-    , text ("arbitrary" ++ typeName) <+> colon <> colon <+> text "Q.Gen" <+> text typeName
-    , text ("arbitrary" ++ typeName) <+> equals
-    , indent 2 $ text "Q.oneof" <+> encloseStack lbracket rbracket comma
-        [ text "do" </> (indent 4 (stack
-           [ text "a <- Q.arbitrary"
-           , text "return" <+> parens (text (constructorName n) <+> text "a")
-           ]))
-        | (_, Message n _) <- schema
-        ]
-    , empty
-    , arbitraryInstance typeName
     ]
   where
   constructorName n = userTypeModuleName n ++ schemaName

@@ -5,6 +5,7 @@ module Gidl
 import Data.Char
 import Data.Monoid
 import Data.Maybe (catMaybes)
+import Control.Monad
 import System.Console.GetOpt
 import System.Environment
 import System.Exit
@@ -44,6 +45,7 @@ data Opts = Opts
   , outpath :: FilePath
   , packagename :: String
   , namespace :: String
+  , debug :: Bool
   , help :: Bool
   }
 
@@ -54,6 +56,7 @@ initialOpts = Opts
   , outpath     = error (usage ["must specify an output path"])
   , packagename = error (usage ["must specify a package name"])
   , namespace   = ""
+  , debug       = False
   , help        = False
   }
 
@@ -76,6 +79,9 @@ setPackageName p = success (\o -> o { packagename = p })
 setNamespace :: String -> OptParser Opts
 setNamespace p = success (\o -> o { namespace = p })
 
+setDebug :: OptParser Opts
+setDebug = success (\o -> o { debug = True })
+
 setHelp :: OptParser Opts
 setHelp = success (\o -> o { help = True })
 
@@ -91,6 +97,8 @@ options =
       "package name for output"
   , Option "n" ["namespace"] (ReqArg setNamespace "NAME")
       "namespace for output"
+  , Option ""  ["debug"]     (NoArg setDebug)
+      "enable debugging output"
   , Option "h" ["help"]      (NoArg setHelp)
       "display this message and exit"
   ]
@@ -125,6 +133,7 @@ run = do
   where
   artifactBackend :: Opts -> [Artifact] -> IO ()
   artifactBackend opts as = do
+    when (debug opts) $ mapM_ printArtifact as
     es <- mapM (putArtifact (outpath opts)) as
     case catMaybes es of
       [] -> exitSuccess

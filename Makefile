@@ -27,6 +27,7 @@ haskell-backend-test-clean:
 
 ivory-backend-test:
 	cabal run gidl -- -b ivory \
+		--debug \
 		-i tests/example.idl \
 		-o tests/gidl-ivory-backend-test \
 		-p gidl-ivory-backend-test \

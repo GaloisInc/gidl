@@ -6,6 +6,7 @@ module Gidl.Types
   , lookupTypeName
   , insertType
   , typeLeaves
+  , baseType
   , typeDescrToRepr
   , sizeOf
   , voidTypeRepr
@@ -75,3 +76,8 @@ bitsSize Bits8  = 1
 bitsSize Bits16 = 2
 bitsSize Bits32 = 4
 bitsSize Bits64 = 8
+
+-- Reduce a newtype to the innermost concrete type
+baseType :: TypeRepr -> TypeRepr
+baseType (TypeRepr _ (NewtypeType (Newtype t))) = baseType t
+baseType a = a

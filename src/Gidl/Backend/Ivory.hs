@@ -24,7 +24,8 @@ ivoryBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace_raw =
           , let tr = typeDescrToRepr tn te
           , isUserDefined tr
           ]
-  imods = [ interfaceModule (namespace ++ ["Interface"]) ir
+  imods = [] -- DISABLE UNTIL WE GET TYPES RIGHT
+  _imods =[ interfaceModule (namespace ++ ["Interface"]) ir
           | (iname, _i) <- ie'
           , let ir = interfaceDescrToRepr iname ie te
           ]
