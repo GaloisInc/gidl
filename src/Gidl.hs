@@ -12,6 +12,7 @@ import System.Exit
 import Ivory.Artifact
 import Gidl.Parse
 import Gidl.Backend.Haskell
+import Gidl.Backend.Ivory
 
 data OptParser opt = OptParser [String] (opt -> opt)
 instance Monoid (OptParser opt) where
@@ -34,6 +35,7 @@ parseOptions opts args = case getOpt Permute opts args of
 
 data Backend
   = HaskellBackend
+  | IvoryBackend
   deriving (Eq, Show)
 
 data Opts = Opts
@@ -58,8 +60,9 @@ initialOpts = Opts
 setBackend :: String -> OptParser Opts
 setBackend b = case map toUpper b of
   "HASKELL" -> success (\o -> o { backend = HaskellBackend })
+  "IVORY"   -> success (\o -> o { backend = IvoryBackend })
   _         -> invalid ("\"" ++ b ++ "\" is not a valid backend.\n"
-                          ++ "Supported backends: haskell")
+                          ++ "Supported backends: haskell, ivory")
 
 setIdlPath :: String -> OptParser Opts
 setIdlPath p = success (\o -> o { idlpath = p })
@@ -114,10 +117,15 @@ run = do
     Left e -> print e >> exitFailure
     Right (te, ie) ->
       case backend opts of
-        HaskellBackend -> do
-          let as = haskellBackend te ie (packagename opts) (namespace opts)
-          es <- mapM (putArtifact (outpath opts)) as
-          case catMaybes es of
-            [] -> exitSuccess
-            ees -> putStrLn (unlines ees) >> exitFailure
+        HaskellBackend -> artifactBackend opts $
+          haskellBackend te ie (packagename opts) (namespace opts)
+        IvoryBackend -> artifactBackend opts $
+          ivoryBackend te ie (packagename opts) (namespace opts)
 
+  where
+  artifactBackend :: Opts -> [Artifact] -> IO ()
+  artifactBackend opts as = do
+    es <- mapM (putArtifact (outpath opts)) as
+    case catMaybes es of
+      [] -> exitSuccess
+      ees -> putStrLn (unlines ees) >> exitFailure
