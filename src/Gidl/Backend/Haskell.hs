@@ -10,6 +10,7 @@ import Gidl.Backend.Haskell.Interface
 import Ivory.Artifact
 
 import Data.Char (isSpace)
+import Text.PrettyPrint.Mainland
 
 haskellBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
 haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace_raw =
@@ -47,4 +48,19 @@ haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace_raw =
     "" -> []
     s' -> let  (w, s'') = break isDot s' in w : dotwords s''
   isDot c = (c == '.') || isSpace c
+
+makefile :: Artifact
+makefile = artifactText "Makefile" $
+  prettyLazyText 80 $ stack
+    [ text "default:"
+    , text "\tcabal build"
+    , empty
+    , text "create-sandbox:"
+    , text "\tcabal sandbox init"
+    , text "\tcabal install --enable-tests --dependencies-only"
+    , empty
+    , text "test:"
+    , text "\tcabal test"
+    , empty
+    ]
 

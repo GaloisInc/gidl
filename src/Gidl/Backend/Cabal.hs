@@ -86,18 +86,3 @@ filePathToPackage ('/':as) = '.' : filePathToPackage as
 filePathToPackage (a:as) = a : filePathToPackage as
 filePathToPackage [] = []
 
-makefile :: Artifact
-makefile = artifactText "Makefile" $
-  prettyLazyText 80 $ stack
-    [ text "default:"
-    , text "\tcabal build"
-    , empty
-    , text "create-sandbox:"
-    , text "\tcabal sandbox init"
-    , text "\tcabal install --enable-tests --dependencies-only"
-    , empty
-    , text "test:"
-    , text "\tcabal test"
-    , empty
-    ]
-
