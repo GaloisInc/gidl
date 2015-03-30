@@ -21,7 +21,11 @@ library
                        Gidl.Backend.Haskell,
                        Gidl.Backend.Haskell.Interface,
                        Gidl.Backend.Haskell.Test,
-                       Gidl.Backend.Haskell.Types
+                       Gidl.Backend.Haskell.Types,
+                       Gidl.Backend.Ivory,
+                       Gidl.Backend.Ivory.Interface,
+                       Gidl.Backend.Ivory.Test,
+                       Gidl.Backend.Ivory.Types
 
   build-depends:       base >=4.7 && <4.8,
                        hashable,
