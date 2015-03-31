@@ -6,14 +6,13 @@ import Data.Monoid
 import Data.List (intercalate, nub)
 import Data.Char (toUpper)
 
-import Gidl.Types
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
-interfaceModule :: [String] -> InterfaceRepr -> Artifact
+interfaceModule :: [String] -> Interface -> Artifact
 interfaceModule modulepath ir =
   artifactPath (intercalate "/" modulepath) $
   artifactText ((ifModuleName ir) ++ ".hs") $
@@ -65,8 +64,8 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
   deriv = text "deriving (Eq, Show, Data, Typeable)"
   typeName = interfaceName ++ schemaName
 
-ifModuleName :: InterfaceRepr -> String
-ifModuleName (InterfaceRepr iname _) = aux iname
+ifModuleName :: Interface -> String
+ifModuleName (Interface iname _ _) = aux iname
   where
   aux :: String -> String
   aux = first_cap . u_to_camel

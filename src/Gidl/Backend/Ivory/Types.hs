@@ -8,12 +8,12 @@ import Gidl.Types
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
--- invariant: only make a typeModule from a StructType, NewtypeType, or EnumType
+-- invariant: only make a typeModule from a StructType, Newtype, or EnumType
 -- i.e. when isUserDefined is true.
-typeModule :: [String] -> TypeRepr -> Artifact
-typeModule modulepath tr@(TypeRepr _ td) =
+typeModule :: [String] -> Type -> Artifact
+typeModule modulepath t =
   artifactPath (intercalate "/" modulepath) $
-  artifactText ((typeModuleName tr) ++ ".hs") $
+  artifactText ((typeModuleName t) ++ ".hs") $
   prettyLazyText 80 $
   stack
     [ text "{-# LANGUAGE DataKinds #-}"
@@ -24,7 +24,7 @@ typeModule modulepath tr@(TypeRepr _ td) =
     , text "{-# OPTIONS_GHC -fno-warn-orphans #-}"
     , empty
     , text "module"
-      <+> tm (typeModuleName tr)
+      <+> tm (typeModuleName t)
       <+> text "where"
     , empty
     , stack (imports ++
@@ -32,22 +32,28 @@ typeModule modulepath tr@(TypeRepr _ td) =
               , text "import Ivory.Serialize"
               ])
     , empty
-    , typeDecl typename td
+    , typeDecl t
     ]
   where
   imports = map (importDecl tm)
           $ nub
-          $ map importType
-          $ typeLeaves td
-  typename = typeModuleName tr
+          $ map (importType . PrimType)
+          $ typeLeaves t
   tm mname = mconcat $ punctuate dot
                      $ map text (modulepath ++ [mname])
 
-typeIvoryType :: TypeRepr -> String
-typeIvoryType (TypeRepr tn (StructType _)) = "Struct \"" ++ userTypeStructName tn ++ "\""
-typeIvoryType (TypeRepr tn (NewtypeType _)) = userTypeModuleName tn
-typeIvoryType (TypeRepr tn (EnumType _)) = userTypeModuleName tn
-typeIvoryType (TypeRepr _ (AtomType a)) = case a of
+typeImportedIvoryType :: Type -> String
+typeImportedIvoryType t@(PrimType (Newtype tn _)) =
+  userTypeModuleName tn ++ "." ++ typeIvoryType t
+typeImportedIvoryType t@(PrimType (EnumType tn _ _)) =
+  userTypeModuleName tn ++ "." ++ typeIvoryType t
+typeImportedIvoryType t = typeIvoryType t
+
+typeIvoryType :: Type -> String
+typeIvoryType (StructType tn _) = "Struct \"" ++ userTypeStructName tn ++ "\""
+typeIvoryType (PrimType (Newtype tn _)) = userTypeModuleName tn
+typeIvoryType (PrimType (EnumType tn _ _)) = userTypeModuleName tn
+typeIvoryType (PrimType (AtomType a)) = case a of
   AtomInt Bits8  -> "Sint8"
   AtomInt Bits16 -> "Sint16"
   AtomInt Bits32 -> "Sint32"
@@ -58,14 +64,14 @@ typeIvoryType (TypeRepr _ (AtomType a)) = case a of
   AtomWord Bits64 -> "Uint64"
   AtomFloat -> "IFloat"
   AtomDouble -> "IDouble"
-typeIvoryType (TypeRepr _ VoidType) = "()" -- XXX this is gonna cause trouble buddy
+typeIvoryType (PrimType VoidType) = "()"
 
-typeModuleName :: TypeRepr -> String
-typeModuleName (TypeRepr tn (StructType _)) = userTypeModuleName tn
-typeModuleName (TypeRepr tn (NewtypeType _)) = userTypeModuleName tn
-typeModuleName (TypeRepr tn (EnumType _)) = userTypeModuleName tn
-typeModuleName (TypeRepr _ (AtomType _)) = error "do not take typeModuleName of an AtomType"
-typeModuleName (TypeRepr _ VoidType) = error "do not take typeModuleName of a VoidType"
+typeModuleName :: Type -> String
+typeModuleName (StructType tn _) = userTypeModuleName tn
+typeModuleName (PrimType (Newtype tn _)) = userTypeModuleName tn
+typeModuleName (PrimType (EnumType tn _ _)) = userTypeModuleName tn
+typeModuleName (PrimType (AtomType _)) = error "do not take typeModuleName of an AtomType"
+typeModuleName (PrimType VoidType) = error "do not take typeModuleName of a VoidType"
 
 userTypeModuleName :: String -> String
 userTypeModuleName = first_cap . userEnumValueName
@@ -93,14 +99,24 @@ userTypeStructName = first_lower . drop_t_suffix
   drop_t_suffix ('_':'t':[]) = []
   drop_t_suffix (a:as) = a : drop_t_suffix as
 
-typeDecl :: TypeName -> Type TypeRepr -> Doc
-typeDecl tname td@(StructType (Struct ss)) = stack
+typeDecl :: Type -> Doc
+typeDecl (StructType tname ss) = stack
   [ text "[ivory|"
   , text "struct" <+> structname
   , indent 2 $ encloseStack lbrace rbrace semi
-      [ text i <+> colon <> colon <+> text "Stored" <+> text (typeIvoryType t) -- XXX AREA TYPE
+      [ text i <+> colon <> colon
+       <+> text "Stored" <+> text (typeImportedIvoryType (PrimType t))
       | (i,t) <- ss ]
   , text "|]"
+  , empty
+  , packRep <+> colon <> colon <+> text "WrappedPackRep" <+> storedType
+  , packRep <+> equals <+> text "wrapPackRep" <+> dquotes structname <+> text "$"
+  , indent 2 $ text "packStruct" <+> encloseStack lbracket rbracket comma
+                [ text "packLabel" <+> text i
+                | (i,_) <- ss]
+  , empty
+  , text "instance Packable" <+> storedType <+> text "where"
+  , indent 2 $ text "packRep" <+> equals <+> text "wrappedPackRep" <+> packRep
   , empty
   , text (userEnumValueName tname) <> text "TypesModule :: Module"
   , text (userEnumValueName tname) <> text "TypesModule" <+> equals
@@ -109,49 +125,89 @@ typeDecl tname td@(StructType (Struct ss)) = stack
       [ text "defStruct"
         <+> parens (text "Proxy :: Proxy" <+> dquotes structname)
       , text "depend serializeModule"
-      , stack is
+      , text "wrappedPackMod" <+> packRep
       ]
 
   ]
   where
-  is = map userIModDependency $ nub $ typeLeaves td
+  storedType = parens (text "Struct" <+> dquotes structname)
   structname = text (userTypeStructName tname)
+  packRep = text "pack" <> text (userTypeModuleName tname)
 
-typeDecl tname (NewtypeType (Newtype n)) =
-  case baseType n of
-    TypeRepr _ (StructType _) -> stack
-      [ text "type" <+> text tname <+> equals <+> text (typeIvoryType (baseType n)) ]
-    _ -> stack
-      [ text "newtype" <+> text tname <+> equals
-      , indent 2 $ text tname <+> align
-            (lbrace <+> text ("un" ++ tname) <+> text "::" <+>
-             text (typeIvoryType n) </>
-             rbrace <+> typeDeriving (words "IvoryType IvoryVar IvoryExpr IvoryEq IvoryStore IvoryInit IvoryZeroVal"))
+typeDecl (PrimType (Newtype tname n)) = stack
+  [ text "newtype" <+> text typename <+> equals
+  , indent 2 $ text typename <+> align
+      (lbrace <+> text ("un" ++ typename ) <+> text "::"
+       <+> text (typeImportedIvoryType (PrimType n))
+       </> rbrace <+> typeDeriving (words ("IvoryType IvoryVar IvoryExpr " ++
+                       "IvoryEq IvoryStore IvoryInit IvoryZeroVal Num")))
+  , empty
+  , packRep <+> colon <> colon <+> text "WrappedPackRep" <+> storedType
+  , packRep <+> equals <+> text "wrapPackRep" <+> dquotes (text typename) <+> text "$"
+  , indent 2 $ text "repackV" <+> text typename <+> text ("un" ++ typename) <+> text "packRep"
+  , empty
+  , text "instance Packable" <+> storedType <+> text "where"
+  , indent 2 $ text "packRep" <+> equals <+> text "wrappedPackRep" <+> packRep
+  , empty
+  , text (userEnumValueName tname) <> text "TypesModule :: Module"
+  , text (userEnumValueName tname) <> text "TypesModule" <+> equals
+    <+> text "package"
+    <+> dquotes (text (userTypeStructName tname) <> text "_types")
+    <+> text "$ do"
+  , indent 2 $ stack
+      [ text "depend serializeModule"
+      , text "wrappedPackMod" <+> packRep
       ]
+  ]
+  where
+  typename = userTypeModuleName tname
+  storedType = parens (text "Stored" <+> text typename)
+  packRep = text "pack" <> text typename
 
-typeDecl tname (EnumType (EnumT s es)) = stack
-  [ text "newtype" <+> text tname <+> equals
-  , indent 2 $ text tname <+> align
-        (lbrace <+> text ("un" ++ tname) <+> text "::" <+>
+typeDecl (PrimType (EnumType tname s es)) = stack
+  [ text "newtype" <+> text typename <+> equals
+  , indent 2 $ text typename <+> align
+        (lbrace <+> text ("un" ++ typename) <+> text "::" <+>
          text bt </>
-         rbrace <+> typeDeriving (words "IvoryType IvoryVar IvoryExpr IvoryEq IvoryStore IvoryInit IvoryZeroVal"))
+         rbrace <+> typeDeriving (words ("IvoryType IvoryVar IvoryExpr IvoryEq "
+                                   ++ "IvoryStore IvoryInit IvoryZeroVal")))
   , empty
   , stack
       [ stack
         [ empty
-        , text (userEnumValueName i) <+> colon <> colon <+> text tname
-        , text (userEnumValueName i) <+> equals <+> text tname <+> ppr e
+        , text (userEnumValueName i) <+> colon <> colon <+> text typename
+        , text (userEnumValueName i) <+> equals <+> text typename <+> ppr e
         ]
       | (i,e) <- es ]
+  , empty
+  , packRep <+> colon <> colon <+> text "WrappedPackRep" <+> storedType
+  , packRep <+> equals <+> text "wrapPackRep" <+> dquotes (text typename) <+> text "$"
+  , indent 2 $ text "repackV" <+> text typename  <+> text ("un" ++ typename) <+> text "packRep"
+  , empty
+  , text "instance Packable" <+> storedType <+> text "where"
+  , indent 2 $ text "packRep" <+> equals <+> text "wrappedPackRep" <+> packRep
+  , empty
+  , text (userEnumValueName tname) <> text "TypesModule :: Module"
+  , text (userEnumValueName tname) <> text "TypesModule" <+> equals
+    <+> text "package"
+    <+> dquotes (text (userTypeStructName tname) <> text "_types")
+    <+> text "$ do"
+  , indent 2 $ stack
+      [ text "depend serializeModule"
+      , text "wrappedPackMod" <+> packRep
+      ]
   ]
   where
+  typename = userTypeModuleName tname
+  packRep = text "pack" <> text typename
+  storedType = parens (text "Stored" <+> text typename)
   bt = case s of
     Bits8 -> "Uint8"
     Bits16 -> "Uint16"
     Bits32 -> "Uint32"
     Bits64 -> "Uint64"
 
-typeDecl tn _ = error ("typeDecl: cannot create decl for built in type " ++ tn)
+typeDecl a = error ("typeDecl: broken invariant, cannot create type for " ++ show a)
 
 typeDeriving :: [String] -> Doc
 typeDeriving cs = text "deriving" <+> parens (commasep (map text cs))
@@ -161,28 +217,25 @@ data ImportType = LibraryType String
                 | NoImport
                 deriving (Eq, Show)
 
-importType :: TypeRepr -> ImportType
-importType (TypeRepr _ (AtomType _)) = NoImport
-importType (TypeRepr _ VoidType) = NoImport
-importType (TypeRepr n _) = UserType n
+importType :: Type -> ImportType
+importType (StructType n _) = UserType n
+importType (PrimType (EnumType n _ _)) = UserType n
+importType (PrimType (Newtype n _)) = UserType n
+importType (PrimType (AtomType _)) = NoImport
+importType (PrimType VoidType) = NoImport
 
-isUserDefined :: TypeRepr -> Bool
-isUserDefined tr = case importType tr of
+isUserDefined :: Type -> Bool
+isUserDefined t = case importType t of
   UserType _ -> True
   _ -> False
 
-
-userIModDependency :: TypeRepr -> Doc
-userIModDependency tr = case baseType tr of
-  (TypeRepr sn (StructType _)) ->
-    text "depend" <+> text (userTypeStructName sn) <> text "TypesModule"
-  _ -> empty
 
 importDecl :: (String -> Doc) -> ImportType -> Doc
 importDecl _ (LibraryType p) =
   text "import" <+> text p
 importDecl mkpath (UserType t) =
-  text "import" <+> mkpath (userTypeModuleName t)
+  text "import qualified" <+> mkpath (userTypeModuleName t)
+      <+> text "as" <+> text (userTypeModuleName t)
 importDecl _ NoImport = empty
 
 

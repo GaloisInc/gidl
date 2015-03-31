@@ -9,7 +9,7 @@ import Gidl.Backend.Ivory.Interface
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
-serializeTestModule :: [String] -> [InterfaceRepr] -> Artifact
+serializeTestModule :: [String] -> [Interface] -> Artifact
 serializeTestModule modulepath irs =
   artifactText "SerializeTest.hs" $
   prettyLazyText 80 $
@@ -36,7 +36,7 @@ serializeTestModule modulepath irs =
   im mname = mconcat $ punctuate dot
                      $ map text (modulepath ++ ["Interface", mname])
 
-testSchema :: InterfaceRepr -> Schema -> Doc
+testSchema :: Interface -> Schema -> Doc
 testSchema ir (Schema sn []) =
   text "-- no tests for empty schema" <+> text (ifModuleName ir ++ sn)
 testSchema ir (Schema sn _) = stack
@@ -67,4 +67,4 @@ props = stack
   , indent 2 $ text "case r of"
   , indent 4 $ text "Q.Success {} -> return ()"
   , indent 4 $ text "_ -> exitFailure"
- ]
+  ]

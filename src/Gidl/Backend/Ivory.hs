@@ -12,22 +12,20 @@ import Data.Char (isSpace)
 import Text.PrettyPrint.Mainland
 
 ivoryBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
-ivoryBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace_raw =
+ivoryBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
   [ cabalFileArtifact cf
   , makefile
   ] ++
   [ artifactPath "src" m | m <- sourceMods
   ]
   where
-  tmods = [ typeModule (namespace ++ ["Types"]) tr
-          | (tn, _t) <- te'
-          , let tr = typeDescrToRepr tn te
-          , isUserDefined tr
+  tmods = [ typeModule (namespace ++ ["Types"]) t
+          | (_tname, t) <- te
+          , isUserDefined t
           ]
   imods = [] -- DISABLE UNTIL WE GET TYPES RIGHT
-  _imods =[ interfaceModule (namespace ++ ["Interface"]) ir
-          | (iname, _i) <- ie'
-          , let ir = interfaceDescrToRepr iname ie te
+  _imods =[ interfaceModule (namespace ++ ["Interface"]) i
+          | (_iname, i) <- ie
           ]
   sourceMods = tmods ++ imods
   cf = (defaultCabalFile pkgname cabalmods deps)
