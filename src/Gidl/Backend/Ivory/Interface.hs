@@ -6,6 +6,7 @@ import Data.Monoid
 import Data.List (intercalate, nub)
 import Data.Char (toUpper)
 
+import Gidl.Types
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
@@ -18,7 +19,8 @@ interfaceModule modulepath ir =
   artifactText ((ifModuleName ir) ++ ".hs") $
   prettyLazyText 80 $
   stack
-    [ text "{-# LANGUAGE DeriveDataTypeable #-}"
+    [ text "{-# LANGUAGE DataKinds #-}"
+    , text "{-# LANGUAGE RankNTypes #-}"
     , empty
     , text "module"
       <+> im (ifModuleName ir)
@@ -41,10 +43,9 @@ interfaceModule modulepath ir =
               $ nub
               $ map importType
               $ interfaceTypes ir
-  extraimports = [ text "import Data.Serialize"
-                 , text "import Data.Typeable"
-                 , text "import Data.Data"
-                 , text "import qualified Test.QuickCheck as Q" ]
+  extraimports = [ text "import Ivory.Language"
+                 , text "import Ivory.Serialize"
+                 ]
 
 schemaDoc :: String -> Schema -> Doc
 schemaDoc interfaceName (Schema schemaName [])     =
@@ -53,15 +54,33 @@ schemaDoc interfaceName (Schema schemaName [])     =
 schemaDoc interfaceName (Schema schemaName schema) = stack
     [ text "-- Define" <+> text schemaName  <+> text "schema for"
         <+> text interfaceName <+> text "interface"
-    , text "data" <+> text typeName
-    , indent 2 $ encloseStack equals deriv (text "|")
-        [ text (constructorName n) <+> text (typeIvoryType t)
+    , text "data" <+> text typeName <> text "Handler"
+    , indent 2 $ encloseStack equals empty (text "|")
+        [ case t of
+            PrimType VoidType -> text (handlerName n)
+                <+> text "(forall eff . Ivory eff ())"
+            _ -> text (handlerName n)
+                  <+> parens (text "forall s eff . ConstRef s" 
+                    <+> parens (text (typeIvoryType t))
+                    <+> text "-> Ivory eff ()")
+        | (_, (Message n t)) <- schema
+        ]
+    , text "data" <+> senderConstructor <+> equals <+> senderConstructor
+    , indent 2 $ encloseStack lbrace rbrace comma
+        [ case t of
+            PrimType VoidType -> text (senderName n) <+> colon <> colon
+                <+> text "(forall eff . Ivory eff ())"
+            _ -> text (senderName n) <+> colon <> colon
+                  <+> parens (text "forall s eff . ConstRef s" 
+                    <+> parens (text (typeIvoryType t))
+                    <+> text "-> Ivory eff ()")
         | (_, (Message n t)) <- schema
         ]
     ]
   where
-  constructorName n = userTypeModuleName n ++ schemaName
-  deriv = text "deriving (Eq, Show, Data, Typeable)"
+  senderConstructor = text typeName <> text "Sender" 
+  handlerName n = userTypeModuleName n ++ schemaName ++ "Handler"
+  senderName n = userEnumValueName n ++ schemaName ++ "Sender"
   typeName = interfaceName ++ schemaName
 
 ifModuleName :: Interface -> String

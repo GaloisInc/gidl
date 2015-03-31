@@ -22,10 +22,9 @@ ivoryBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
   userDefinedTypes = [ t | (_,t) <- te, isUserDefined t ]
   tmods = [ typeModule (namespace ++ ["Types"]) t
           | t <- userDefinedTypes ]
-  imods = [] -- DISABLE UNTIL WE GET TYPES RIGHT
-  _imods =[ interfaceModule (namespace ++ ["Interface"]) i
-          | (_iname, i) <- ie
-          ]
+  imods =[ interfaceModule (namespace ++ ["Interface"]) i
+         | (_iname, i) <- ie
+         ]
   sourceMods = tmods ++ imods ++ [ typeUmbrella namespace userDefinedTypes ]
   cf = (defaultCabalFile pkgname cabalmods deps)
   cabalmods = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
