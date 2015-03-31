@@ -14,7 +14,7 @@ type InterfaceName = String
 type MethodName = String
 
 data Interface
-  = Interface [Interface] [(MethodName, Method)]
+  = Interface String [Interface] [(MethodName, Method)]
   deriving (Eq, Show)
 
 data Method

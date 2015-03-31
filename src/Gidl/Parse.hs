@@ -129,13 +129,13 @@ defineType (tn, t) = do
     Just _ -> fail ("type named '" ++ tn ++ "' already exists")
     Nothing -> setTypeEnv (insertType tn t te)
 
-defineInterface :: (InterfaceName, Interface) -> Parser ParseEnv ()
-defineInterface (ina, i) = do
+defineInterface :: Interface -> Parser ParseEnv ()
+defineInterface i = do
   ie <- getInterfaceEnv
   case lookupInterface ina ie of
     Just _ -> fail ("interface named '" ++ ina ++ "' already exists")
-    Nothing -> setInterfaceEnv (insertInterface ina i ie)
-
+    Nothing -> setInterfaceEnv (insertInterface i ie)
+  where (Interface ina _ _) = i
 tNewtypeDecl :: Parser ParseEnv (TypeName, Type)
 tNewtypeDecl = tList $ do
   tIdentifier "def-newtype"
@@ -211,7 +211,7 @@ tKnownInterface  = do
     Just i -> return i
     Nothing -> fail ("expected a known interface name, got " ++ n)
 
-tInterfaceDecl :: Parser ParseEnv (InterfaceName, Interface)
+tInterfaceDecl :: Parser ParseEnv Interface
 tInterfaceDecl = tList $ do
   tIdentifier "def-interface"
   tWhiteSpace
@@ -224,8 +224,8 @@ tInterfaceDecl = tList $ do
   ps <- optionMaybe (tList (many1 tKnownInterface))
   -- XXX require the ms not shadow names in inherited interfaces
   case ps of
-    Just p -> return (n, Interface  p ms)
-    Nothing -> return (n, Interface [] ms)
+    Just p -> return (Interface  n p ms)
+    Nothing -> return (Interface n [] ms)
 
 tDecls :: Parser ParseEnv ParseEnv
 tDecls = do
