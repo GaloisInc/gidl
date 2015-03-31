@@ -13,7 +13,7 @@ import Text.Show.Pretty
 
 import Ivory.Artifact
 import Gidl.Parse
---import Gidl.Backend.Haskell
+import Gidl.Backend.Haskell
 --import Gidl.Backend.Ivory
 
 data OptParser opt = OptParser [String] (opt -> opt)
@@ -130,8 +130,7 @@ run = do
         putStrLn (ppShow ie)
       case backend opts of
         HaskellBackend -> artifactBackend opts $
-          []
-          --haskellBackend te ie (packagename opts) (namespace opts)
+          haskellBackend te ie (packagename opts) (namespace opts)
         IvoryBackend -> artifactBackend opts $
           []
           --ivoryBackend te ie (packagename opts) (namespace opts)

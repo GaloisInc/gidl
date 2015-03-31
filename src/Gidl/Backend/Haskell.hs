@@ -13,7 +13,7 @@ import Data.Char (isSpace)
 import Text.PrettyPrint.Mainland
 
 haskellBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
-haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace_raw =
+haskellBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
   [ cabalFileArtifact cf
   , makefile
   , artifactPath "tests" serializeTestMod
@@ -21,14 +21,12 @@ haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace_raw =
   [ artifactPath "src" m | m <- sourceMods
   ]
   where
-  tmods = [ typeModule (namespace ++ ["Types"]) tr
-          | (tn, _t) <- te'
-          , let tr = typeDescrToRepr tn te
-          , isUserDefined tr
+  tmods = [ typeModule (namespace ++ ["Types"]) t
+          | (_tn, t) <- te
+          , isUserDefined t
           ]
-  imods = [ interfaceModule (namespace ++ ["Interface"]) ir
-          | (iname, _i) <- ie'
-          , let ir = interfaceDescrToRepr iname ie te
+  imods = [ interfaceModule (namespace ++ ["Interface"]) i
+          | (_iname, i) <- ie
           ]
   sourceMods = tmods ++ imods
   cf = (defaultCabalFile pkgname cabalmods deps) { tests = [ serializeTest ] }
@@ -37,8 +35,7 @@ haskellBackend te@(TypeEnv te') ie@(InterfaceEnv ie') pkgname namespace_raw =
 
   serializeTest = defaultCabalTest "serialize-test" "SerializeTest.hs"
                       (pkgname:deps)
-  serializeTestMod = serializeTestModule namespace
-                        [ interfaceDescrToRepr iname ie te | (iname, _i) <- ie']
+  serializeTestMod = serializeTestModule namespace (map snd ie)
 
   namespace = dotwords namespace_raw
 

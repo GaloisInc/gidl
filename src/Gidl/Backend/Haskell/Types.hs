@@ -10,17 +10,17 @@ import Text.PrettyPrint.Mainland
 
 -- invariant: only make a typeModule from a StructType, NewtypeType, or EnumType
 -- i.e. when isUserDefined is true.
-typeModule :: [String] -> TypeRepr -> Artifact
-typeModule modulepath tr@(TypeRepr _ td) =
+typeModule :: [String] -> Type -> Artifact
+typeModule modulepath t =
   artifactPath (intercalate "/" modulepath) $
-  artifactText ((typeModuleName tr) ++ ".hs") $
+  artifactText ((typeModuleName t) ++ ".hs") $
   prettyLazyText 80 $
   stack
     [ text "{-# LANGUAGE RecordWildCards #-}"
     , text "{-# LANGUAGE DeriveDataTypeable #-}"
     , empty
     , text "module"
-      <+> tm (typeModuleName tr)
+      <+> tm (typeModuleName t)
       <+> text "where"
     , empty
     , stack (imports ++
@@ -30,22 +30,22 @@ typeModule modulepath tr@(TypeRepr _ td) =
               , text "import qualified Test.QuickCheck as Q"
               ])
     , empty
-    , typeDecl typename td
+    , typeDecl typename t
     ]
   where
   imports = map (importDecl tm)
           $ nub
-          $ map importType
-          $ typeLeaves td
-  typename = typeModuleName tr
+          $ map (importType . PrimType)
+          $ typeLeaves t
+  typename = typeModuleName t
   tm mname = mconcat $ punctuate dot
                      $ map text (modulepath ++ [mname])
 
-typeHaskellType :: TypeRepr -> String
-typeHaskellType (TypeRepr tn (StructType _)) = userTypeModuleName tn
-typeHaskellType (TypeRepr tn (NewtypeType _)) = userTypeModuleName tn
-typeHaskellType (TypeRepr tn (EnumType _)) = userTypeModuleName tn
-typeHaskellType (TypeRepr _ (AtomType a)) = case a of
+typeHaskellType :: Type -> String
+typeHaskellType (StructType tn _) = userTypeModuleName tn
+typeHaskellType (PrimType (Newtype tn _)) = userTypeModuleName tn
+typeHaskellType (PrimType (EnumType tn _ _)) = userTypeModuleName tn
+typeHaskellType (PrimType  (AtomType a)) = case a of
   AtomInt Bits8  -> "Int8"
   AtomInt Bits16 -> "Int16"
   AtomInt Bits32 -> "Int32"
@@ -56,14 +56,14 @@ typeHaskellType (TypeRepr _ (AtomType a)) = case a of
   AtomWord Bits64 -> "Word64"
   AtomFloat -> "Float"
   AtomDouble -> "Double"
-typeHaskellType (TypeRepr _ VoidType) = "()"
+typeHaskellType (PrimType VoidType) = "()"
 
-typeModuleName :: TypeRepr -> String
-typeModuleName (TypeRepr tn (StructType _)) = userTypeModuleName tn
-typeModuleName (TypeRepr tn (NewtypeType _)) = userTypeModuleName tn
-typeModuleName (TypeRepr tn (EnumType _)) = userTypeModuleName tn
-typeModuleName (TypeRepr _ (AtomType _)) = error "do not take typeModuleName of an AtomType"
-typeModuleName (TypeRepr _ VoidType) = error "do not take typeModuleName of a VoidType"
+typeModuleName :: Type -> String
+typeModuleName (StructType tn _) = userTypeModuleName tn
+typeModuleName (PrimType (Newtype tn _)) = userTypeModuleName tn
+typeModuleName (PrimType (EnumType tn _ _)) = userTypeModuleName tn
+typeModuleName (PrimType (AtomType _)) = error "do not take typeModuleName of an AtomType"
+typeModuleName (PrimType VoidType) = error "do not take typeModuleName of a VoidType"
 
 userTypeModuleName :: String -> String
 userTypeModuleName = first_cap . u_to_camel
@@ -93,12 +93,12 @@ arbitraryInstance tname = stack
       ]
   ]
 
-typeDecl :: TypeName -> Type TypeRepr -> Doc
-typeDecl tname (StructType (Struct ss)) = stack
+typeDecl :: String -> Type -> Doc
+typeDecl tname (StructType _ ss) = stack
   [ text "data" <+> text tname <+> equals
   , indent 2 $ text tname
   , indent 4 $ encloseStack lbrace (rbrace <+> deriv) comma
-      [ text i <+> colon <> colon <+> text (typeHaskellType t)
+      [ text i <+> colon <> colon <+> text (typeHaskellType (PrimType t))
       | (i,t) <- ss ]
   , empty
   , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
@@ -127,11 +127,11 @@ typeDecl tname (StructType (Struct ss)) = stack
   ]
   where deriv = typeDeriving ["Eq", "Show", "Data", "Typeable"]
 
-typeDecl tname (NewtypeType (Newtype n)) = stack
+typeDecl tname (PrimType (Newtype _ n)) = stack
   [ text "newtype" <+> text tname <+> equals
   , indent 2 $ text tname <+> align
         (lbrace <+> text ("un" ++ tname) <+> text "::" <+>
-         text (typeHaskellType n) </>
+         text (typeHaskellType (PrimType n)) </>
          rbrace <+> typeDeriving ["Eq", "Show", "Data", "Typeable"])
   , empty
   , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
@@ -153,7 +153,7 @@ typeDecl tname (NewtypeType (Newtype n)) = stack
   , arbitraryInstance tname
   ]
 
-typeDecl tname (EnumType (EnumT s es)) = stack
+typeDecl tname (PrimType (EnumType _ s es)) = stack
   [ text "data" <+> text tname
   , indent 2 $ encloseStack equals deriv (text "|")
       [ text (userTypeModuleName i)
@@ -212,16 +212,18 @@ data ImportType = LibraryType String
                 | NoImport
                 deriving (Eq, Show)
 
-importType :: TypeRepr -> ImportType
-importType (TypeRepr _ (AtomType a)) =
+importType :: Type -> ImportType
+importType (StructType n _) = UserType n
+importType (PrimType (EnumType n _ _)) = UserType n
+importType (PrimType (Newtype n _)) = UserType n
+importType (PrimType (AtomType a)) =
   case a of
     AtomWord _ -> LibraryType "Data.Word"
     AtomInt _ -> LibraryType "Data.Int"
     _ -> NoImport
-importType (TypeRepr _ VoidType) = NoImport
-importType (TypeRepr n _) = UserType n
+importType (PrimType VoidType) = NoImport
 
-isUserDefined :: TypeRepr -> Bool
+isUserDefined :: Type -> Bool
 isUserDefined tr = case importType tr of
   UserType _ -> True
   _ -> False

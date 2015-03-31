@@ -17,11 +17,11 @@ library
                        Gidl.Types,
                        Gidl.Types.AST,
                        Gidl.Types.Base,
-                       Gidl.Backend.Cabal
-                     --  Gidl.Backend.Haskell,
-                     --  Gidl.Backend.Haskell.Interface,
-                     --  Gidl.Backend.Haskell.Test,
-                     --  Gidl.Backend.Haskell.Types,
+                       Gidl.Backend.Cabal,
+                       Gidl.Backend.Haskell,
+                       Gidl.Backend.Haskell.Interface,
+                       Gidl.Backend.Haskell.Test,
+                       Gidl.Backend.Haskell.Types
                      --  Gidl.Backend.Ivory,
                      --  Gidl.Backend.Ivory.Interface,
                      --  Gidl.Backend.Ivory.Test,

@@ -9,8 +9,8 @@ import Gidl.Backend.Haskell.Interface
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
-serializeTestModule :: [String] -> [InterfaceRepr] -> Artifact
-serializeTestModule modulepath irs =
+serializeTestModule :: [String] -> [Interface] -> Artifact
+serializeTestModule modulepath is =
   artifactText "SerializeTest.hs" $
   prettyLazyText 80 $
   stack
@@ -22,12 +22,12 @@ serializeTestModule modulepath irs =
     , text "import System.Exit (exitFailure, exitSuccess)"
     , text "import qualified Test.QuickCheck as Q"
     , empty
-    , stack [ text "import" <+> im (ifModuleName ir) | ir <- irs ]
+    , stack [ text "import" <+> im (ifModuleName i) | i <- is ]
     , empty
     , text "main :: IO ()"
     , text "main" <+> equals <+> text "do" <+> align (stack
-        ([ testSchema ir (producerSchema ir) </> testSchema ir (consumerSchema ir)
-         | ir <- irs ] ++
+        ([ testSchema i (producerSchema i) </> testSchema i (consumerSchema i)
+         | i <- is ] ++
          [ text "exitSuccess" ]))
     , empty
     , props
@@ -36,16 +36,16 @@ serializeTestModule modulepath irs =
   im mname = mconcat $ punctuate dot
                      $ map text (modulepath ++ ["Interface", mname])
 
-testSchema :: InterfaceRepr -> Schema -> Doc
-testSchema ir (Schema sn []) =
-  text "-- no tests for empty schema" <+> text (ifModuleName ir ++ sn)
-testSchema ir (Schema sn _) = stack
+testSchema :: Interface -> Schema -> Doc
+testSchema i (Schema sn []) =
+  text "-- no tests for empty schema" <+> text (ifModuleName i ++ sn)
+testSchema i (Schema sn _) = stack
   [ text "runQC" <+> parens
       (text "serializeRoundtrip ::" <+> text sname <+> text "-> Bool")
   , text "runQC" <+> parens
       (text "serializeManyRoundtrip ::" <+> brackets (text sname) <+> text "-> Bool")
   ]
-  where sname = ifModuleName ir ++ sn
+  where sname = ifModuleName i ++ sn
 
 props :: Doc
 props = stack

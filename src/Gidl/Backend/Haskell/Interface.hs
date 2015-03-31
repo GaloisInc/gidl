@@ -13,23 +13,23 @@ import Gidl.Backend.Haskell.Types
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
-interfaceModule :: [String] -> InterfaceRepr -> Artifact
-interfaceModule modulepath ir =
+interfaceModule :: [String] -> Interface -> Artifact
+interfaceModule modulepath i =
   artifactPath (intercalate "/" modulepath) $
-  artifactText ((ifModuleName ir) ++ ".hs") $
+  artifactText ((ifModuleName i) ++ ".hs") $
   prettyLazyText 80 $
   stack
     [ text "{-# LANGUAGE DeriveDataTypeable #-}"
     , empty
     , text "module"
-      <+> im (ifModuleName ir)
+      <+> im (ifModuleName i)
       <+> text "where"
     , empty
     , stack $ typeimports ++ extraimports
     , empty
-    , schemaDoc (ifModuleName ir) (producerSchema ir)
+    , schemaDoc (ifModuleName i) (producerSchema i)
     , empty
-    , schemaDoc (ifModuleName ir) (consumerSchema ir)
+    , schemaDoc (ifModuleName i) (consumerSchema i)
     ]
   where
   im mname = mconcat $ punctuate dot
@@ -41,7 +41,7 @@ interfaceModule modulepath ir =
   typeimports = map (importDecl tm)
               $ nub
               $ map importType
-              $ interfaceTypes ir
+              $ interfaceTypes i
   extraimports = [ text "import Data.Serialize"
                  , text "import Data.Typeable"
                  , text "import Data.Data"
@@ -105,8 +105,8 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
   deriv = text "deriving (Eq, Show, Data, Typeable)"
   typeName = interfaceName ++ schemaName
 
-ifModuleName :: InterfaceRepr -> String
-ifModuleName (InterfaceRepr iname _) = aux iname
+ifModuleName :: Interface -> String
+ifModuleName (Interface iname _ _) = aux iname
   where
   aux :: String -> String
   aux = first_cap . u_to_camel
