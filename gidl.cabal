@@ -9,23 +9,23 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Gidl,
-                       Gidl.Parse,
+  exposed-modules:     Gidl.Parse,
                        Gidl.Interface,
                        Gidl.Interface.AST,
                        Gidl.Schema,
                        Gidl.Types,
                        Gidl.Types.AST,
                        Gidl.Types.Base,
-                       Gidl.Backend.Cabal,
-                       Gidl.Backend.Haskell,
-                       Gidl.Backend.Haskell.Interface,
-                       Gidl.Backend.Haskell.Test,
-                       Gidl.Backend.Haskell.Types,
-                       Gidl.Backend.Ivory,
-                       Gidl.Backend.Ivory.Interface,
-                       Gidl.Backend.Ivory.Test,
-                       Gidl.Backend.Ivory.Types
+                       Gidl.Backend.Cabal
+                     --  Gidl,
+                     --  Gidl.Backend.Haskell,
+                     --  Gidl.Backend.Haskell.Interface,
+                     --  Gidl.Backend.Haskell.Test,
+                     --  Gidl.Backend.Haskell.Types,
+                     --  Gidl.Backend.Ivory,
+                     --  Gidl.Backend.Ivory.Interface,
+                     --  Gidl.Backend.Ivory.Test,
+                     --  Gidl.Backend.Ivory.Types
 
   build-depends:       base >=4.7 && <4.8,
                        hashable,

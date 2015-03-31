@@ -4,17 +4,20 @@ module Gidl.Types.AST where
 type Identifier = String
 type TypeName = String
 data TypeEnv
-  = TypeEnv [(TypeName, Type TypeName)]
+  = TypeEnv [(TypeName, Type)]
   deriving (Eq, Show)
 
 emptyTypeEnv :: TypeEnv
 emptyTypeEnv = TypeEnv []
 
+data Type
+  = StructType String [(Identifier, PrimType)]
+  | PrimType PrimType
+  deriving (Eq, Show)
 
-data Type t
-  = StructType (Struct t)
-  | NewtypeType (Newtype t)
-  | EnumType EnumT
+data PrimType
+  = Newtype  String PrimType
+  | EnumType String Bits [(Identifier, Integer)]
   | AtomType Atom
   | VoidType
   deriving (Eq, Show)
@@ -24,7 +27,6 @@ data Atom
   | AtomWord Bits
   | AtomFloat
   | AtomDouble
---  | AtomString Int
   deriving (Eq, Show)
 
 data Bits
@@ -32,17 +34,5 @@ data Bits
   | Bits16
   | Bits32
   | Bits64
-  deriving (Eq, Show)
-
-data Struct t
-  = Struct [(Identifier, t)]
-  deriving (Eq, Show)
-
-data Newtype t
-  = Newtype t
-  deriving (Eq, Show)
-
-data EnumT
-  = EnumT Bits [(Identifier, Integer)]
   deriving (Eq, Show)
 

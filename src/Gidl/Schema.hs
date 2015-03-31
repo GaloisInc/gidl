@@ -7,13 +7,13 @@ import Gidl.Types
 import Gidl.Interface
 
 type MsgId = Word32
-data Message = Message String TypeRepr
+data Message = Message String Type
              deriving (Eq, Show)
 data Schema = Schema String [(MsgId, Message)]
             deriving (Eq, Show)
 
 
-producerSchema :: InterfaceRepr -> Schema
+producerSchema :: Interface -> Schema
 producerSchema ir = Schema "Producer" [(mkMsgId m, m) | m <- messages ]
   where
   messages = concatMap mkMessages (interfaceMethods ir)
@@ -23,7 +23,7 @@ producerSchema ir = Schema "Producer" [(mkMsgId m, m) | m <- messages ]
   mkMessages (attrname, (AttrMethod  _ tr)) =
     [ Message (attrname ++ "_val") tr ]
 
-consumerSchema :: InterfaceRepr -> Schema
+consumerSchema :: Interface -> Schema
 consumerSchema ir = Schema "Consumer" [(mkMsgId m, m) | m <- messages ]
   where
   messages = concatMap mkMessages (interfaceMethods ir)
@@ -32,10 +32,10 @@ consumerSchema ir = Schema "Consumer" [(mkMsgId m, m) | m <- messages ]
   mkMessages (attrname, (AttrMethod Write tr)) =
     [ Message (attrname ++ "_set") tr ]
   mkMessages (attrname, (AttrMethod Read _)) =
-    [ Message (attrname ++ "_get") voidTypeRepr ]
+    [ Message (attrname ++ "_get")  (PrimType VoidType) ]
   mkMessages (attrname, (AttrMethod ReadWrite tr)) =
     [ Message (attrname ++ "_set") tr
-    , Message (attrname ++ "_get") voidTypeRepr
+    , Message (attrname ++ "_get") (PrimType VoidType)
     ]
 
 
