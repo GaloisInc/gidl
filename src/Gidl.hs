@@ -9,11 +9,12 @@ import Control.Monad
 import System.Console.GetOpt
 import System.Environment
 import System.Exit
+import Text.Show.Pretty
 
 import Ivory.Artifact
 import Gidl.Parse
-import Gidl.Backend.Haskell
-import Gidl.Backend.Ivory
+--import Gidl.Backend.Haskell
+--import Gidl.Backend.Ivory
 
 data OptParser opt = OptParser [String] (opt -> opt)
 instance Monoid (OptParser opt) where
@@ -123,12 +124,17 @@ run = do
   idl <- readFile (idlpath opts)
   case parseDecls idl of
     Left e -> print e >> exitFailure
-    Right (te, ie) ->
+    Right (te, ie) -> do
+      when (debug opts) $ do
+        putStrLn (ppShow te)
+        putStrLn (ppShow ie)
       case backend opts of
         HaskellBackend -> artifactBackend opts $
-          haskellBackend te ie (packagename opts) (namespace opts)
+          []
+          --haskellBackend te ie (packagename opts) (namespace opts)
         IvoryBackend -> artifactBackend opts $
-          ivoryBackend te ie (packagename opts) (namespace opts)
+          []
+          --ivoryBackend te ie (packagename opts) (namespace opts)
 
   where
   artifactBackend :: Opts -> [Artifact] -> IO ()

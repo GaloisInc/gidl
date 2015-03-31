@@ -9,7 +9,8 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Gidl.Parse,
+  exposed-modules:     Gidl,
+                       Gidl.Parse,
                        Gidl.Interface,
                        Gidl.Interface.AST,
                        Gidl.Schema,
@@ -17,7 +18,6 @@ library
                        Gidl.Types.AST,
                        Gidl.Types.Base,
                        Gidl.Backend.Cabal
-                     --  Gidl,
                      --  Gidl.Backend.Haskell,
                      --  Gidl.Backend.Haskell.Interface,
                      --  Gidl.Backend.Haskell.Test,
@@ -31,6 +31,7 @@ library
                        hashable,
                        mainland-pretty,
                        parsec,
+                       pretty-show,
                        transformers,
                        ivory-artifact
   hs-source-dirs:      src
