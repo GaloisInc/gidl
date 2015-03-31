@@ -19,15 +19,14 @@ ivoryBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
   [ artifactPath "src" m | m <- sourceMods
   ]
   where
+  userDefinedTypes = [ t | (_,t) <- te, isUserDefined t ]
   tmods = [ typeModule (namespace ++ ["Types"]) t
-          | (_tname, t) <- te
-          , isUserDefined t
-          ]
+          | t <- userDefinedTypes ]
   imods = [] -- DISABLE UNTIL WE GET TYPES RIGHT
   _imods =[ interfaceModule (namespace ++ ["Interface"]) i
           | (_iname, i) <- ie
           ]
-  sourceMods = tmods ++ imods
+  sourceMods = tmods ++ imods ++ [ typeUmbrella namespace userDefinedTypes ]
   cf = (defaultCabalFile pkgname cabalmods deps)
   cabalmods = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
   deps = words "ivory ivory-stdlib ivory-serialize"

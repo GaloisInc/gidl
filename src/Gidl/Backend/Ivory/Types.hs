@@ -8,6 +8,29 @@ import Gidl.Types
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
+typeUmbrella :: [String] -> [Type] -> Artifact
+typeUmbrella modulepath ts =
+  artifactPath (intercalate "/" modulepath) $
+  artifactText ("Types.hs") $
+  prettyLazyText 80 $
+  stack
+    [ text "module" <+> typeModulePath modulepath "Types" <+> text "where"
+    , empty
+    , text "import Ivory.Language"
+    , stack
+        [ importDecl (typeModulePath (modulepath ++ ["Types"])) (importType t)
+        | t <- ts ]
+    , empty
+    , text "typeModules :: [Module]"
+    , text "typeModules ="
+    , indent 2 $ encloseStack lbracket rbracket comma
+        [ text tname <> dot
+          <> text (userEnumValueName tname) <> text "TypesModule"
+        | t <- ts
+        , let tname = typeModuleName t
+        ]
+    ]
+
 -- invariant: only make a typeModule from a StructType, Newtype, or EnumType
 -- i.e. when isUserDefined is true.
 typeModule :: [String] -> Type -> Artifact
@@ -24,7 +47,7 @@ typeModule modulepath t =
     , text "{-# OPTIONS_GHC -fno-warn-orphans #-}"
     , empty
     , text "module"
-      <+> tm (typeModuleName t)
+      <+> typeModulePath modulepath (typeModuleName t)
       <+> text "where"
     , empty
     , stack (imports ++
@@ -35,12 +58,14 @@ typeModule modulepath t =
     , typeDecl t
     ]
   where
-  imports = map (importDecl tm)
+  imports = map (importDecl (typeModulePath modulepath))
           $ nub
           $ map (importType . PrimType)
           $ typeLeaves t
-  tm mname = mconcat $ punctuate dot
-                     $ map text (modulepath ++ [mname])
+
+typeModulePath :: [String] -> String -> Doc
+typeModulePath modulepath mname = mconcat $ punctuate dot
+                                          $ map text (modulepath ++ [mname])
 
 typeImportedIvoryType :: Type -> String
 typeImportedIvoryType t@(PrimType (Newtype tn _)) =
