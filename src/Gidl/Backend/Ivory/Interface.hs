@@ -22,6 +22,7 @@ interfaceModule modulepath ir =
     [ text "{-# LANGUAGE DataKinds #-}"
     , text "{-# LANGUAGE RankNTypes #-}"
     , text "{-# LANGUAGE ScopedTypeVariables #-}"
+    , text "{-# OPTIONS_GHC -fno-warn-unused-imports #-}"
     , empty
     , text "module"
       <+> im (ifModuleName ir)
@@ -124,8 +125,8 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
         [ case t of
             PrimType VoidType -> text (senderName n) <+> equals <+> text "do" </> indent 4
                   (stack [ text "o <- deref offs"
-                         , text "let required_size = sizeOf (Proxy :: Proxy (Stored Uint32))"
-                         , text "    sufficient_space = (o + required_size) <? sizeOf (Proxy :: Proxy (Array n (Stored Uint8)))"
+                         , text "let required_size = fromInteger (packSize (packRep :: PackRep (Stored Uint32)))"
+                         , text "    sufficient_space = (o + required_size) <? arrayLen arr"
                          , text "when sufficient_space $ do"
                          , indent 2 $ stack
                              [ text "ident <- local (ival (" <+> ppr h <+> text ":: Uint32))"
@@ -137,10 +138,10 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
 
             _ -> text (senderName n) <+> equals <+> text "\\m -> do" </> indent 4
                   (stack [ text "o <- deref offs"
-                         , text "let required_size = sizeOf (Proxy :: Proxy"
+                         , text "let required_size = fromInteger (packSize (packRep :: PackRep"
                              <+> parens (text (typeIvoryType t)) <+> text ")"
-                             <+> text "+ sizeOf (Proxy :: Proxy (Stored Uint32))"
-                         , text "    sufficient_space = (o + required_size) <? sizeOf (Proxy :: Proxy (Array n (Stored Uint8)))"
+                             <+> text "+ packSize (packRep :: PackRep (Stored Uint32)))"
+                         , text "    sufficient_space = (o + required_size) <? arrayLen arr"
                          , text "when sufficient_space $ do"
                          , indent 2 $ stack
                              [ text "ident <- local (ival (" <+> ppr h <+> text ":: Uint32))"
