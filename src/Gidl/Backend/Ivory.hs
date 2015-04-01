@@ -5,6 +5,7 @@ import Gidl.Interface
 import Gidl.Backend.Cabal
 import Gidl.Backend.Ivory.Types
 import Gidl.Backend.Ivory.Interface
+import Gidl.Backend.Ivory.Unpack
 
 import Ivory.Artifact
 
@@ -25,7 +26,11 @@ ivoryBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
   imods =[ interfaceModule (namespace ++ ["Interface"]) i
          | (_iname, i) <- ie
          ]
-  sourceMods = tmods ++ imods ++ [ typeUmbrella namespace userDefinedTypes ]
+  sourceMods = tmods
+            ++ imods
+            ++ [ typeUmbrella namespace userDefinedTypes
+               , unpackModule namespace
+               ]
   cf = (defaultCabalFile pkgname cabalmods deps)
   cabalmods = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
   deps = words "ivory ivory-stdlib ivory-serialize"

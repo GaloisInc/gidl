@@ -25,7 +25,8 @@ library
                        Gidl.Backend.Ivory,
                        Gidl.Backend.Ivory.Interface,
                        Gidl.Backend.Ivory.Test,
-                       Gidl.Backend.Ivory.Types
+                       Gidl.Backend.Ivory.Types,
+                       Gidl.Backend.Ivory.Unpack
 
   build-depends:       base >=4.7 && <4.8,
                        hashable,
