@@ -124,14 +124,23 @@ userTypeStructName = first_lower . drop_t_suffix
   drop_t_suffix ('_':'t':[]) = []
   drop_t_suffix (a:as) = a : drop_t_suffix as
 
+ivoryPackageName :: Type -> String
+ivoryPackageName (StructType tname _) = userEnumValueName tname ++ "TypesModule"
+ivoryPackageName (PrimType (Newtype tname _)) = userEnumValueName tname ++ "TypesModule"
+ivoryPackageName (PrimType (EnumType tname _ _)) = userEnumValueName tname ++ "TypesModule"
+ivoryPackageName _ = error "can't take ivoryPackageName of builtin type"
+qualifiedIvoryPackageName :: Type -> String
+qualifiedIvoryPackageName t = typeModuleName t ++ "." ++ ivoryPackageName t
+
+
 typeDecl :: Type -> Doc
-typeDecl (StructType tname ss) = stack
+typeDecl t@(StructType tname ss) = stack
   [ text "[ivory|"
   , text "struct" <+> structname
   , indent 2 $ encloseStack lbrace rbrace semi
       [ text i <+> colon <> colon
-       <+> text "Stored" <+> text (typeImportedIvoryType (PrimType t))
-      | (i,t) <- ss ]
+       <+> text "Stored" <+> text (typeImportedIvoryType (PrimType st))
+      | (i,st) <- ss ]
   , text "|]"
   , empty
   , packRep <+> colon <> colon <+> text "WrappedPackRep" <+> storedType
@@ -143,14 +152,18 @@ typeDecl (StructType tname ss) = stack
   , text "instance Packable" <+> storedType <+> text "where"
   , indent 2 $ text "packRep" <+> equals <+> text "wrappedPackRep" <+> packRep
   , empty
-  , text (userEnumValueName tname) <> text "TypesModule :: Module"
-  , text (userEnumValueName tname) <> text "TypesModule" <+> equals
+  , text (ivoryPackageName t) <+> text ":: Module"
+  , text (ivoryPackageName t) <+> equals
     <+> text "package" <+> dquotes (structname <> text "_types") <+> text "$ do"
-  , indent 2 $ stack
+  , indent 2 $ stack $
       [ text "defStruct"
         <+> parens (text "Proxy :: Proxy" <+> dquotes structname)
       , text "depend serializeModule"
       , text "wrappedPackMod" <+> packRep
+      ] ++
+      [ text "depend" <+> text (qualifiedIvoryPackageName dt)
+      | dt <- fmap PrimType (typeLeaves t)
+      , isUserDefined dt
       ]
 
   ]
@@ -159,7 +172,7 @@ typeDecl (StructType tname ss) = stack
   structname = text (userTypeStructName tname)
   packRep = text "pack" <> text (userTypeModuleName tname)
 
-typeDecl (PrimType (Newtype tname n)) = stack
+typeDecl t@(PrimType (Newtype tname n)) = stack
   [ text "newtype" <+> text typename <+> equals
   , indent 2 $ text typename <+> align
       (lbrace <+> text ("un" ++ typename ) <+> text "::"
@@ -168,20 +181,24 @@ typeDecl (PrimType (Newtype tname n)) = stack
                        "IvoryEq IvoryStore IvoryInit IvoryZeroVal Num")))
   , empty
   , packRep <+> colon <> colon <+> text "WrappedPackRep" <+> storedType
-  , packRep <+> equals <+> text "wrapPackRep" <+> dquotes (text typename) <+> text "$"
+  , packRep <+> equals <+> text "wrapPackRep" <+> dquotes (text tname) <+> text "$"
   , indent 2 $ text "repackV" <+> text typename <+> text ("un" ++ typename) <+> text "packRep"
   , empty
   , text "instance Packable" <+> storedType <+> text "where"
   , indent 2 $ text "packRep" <+> equals <+> text "wrappedPackRep" <+> packRep
   , empty
-  , text (userEnumValueName tname) <> text "TypesModule :: Module"
-  , text (userEnumValueName tname) <> text "TypesModule" <+> equals
+  , text (ivoryPackageName t) <+> text ":: Module"
+  , text (ivoryPackageName t) <+> equals
     <+> text "package"
     <+> dquotes (text (userTypeStructName tname) <> text "_types")
     <+> text "$ do"
-  , indent 2 $ stack
+  , indent 2 $ stack $
       [ text "depend serializeModule"
       , text "wrappedPackMod" <+> packRep
+      ] ++
+      [ text "depend" <+> text (qualifiedIvoryPackageName dt)
+      | dt <- fmap PrimType (typeLeaves t)
+      , isUserDefined dt
       ]
   ]
   where
@@ -189,7 +206,7 @@ typeDecl (PrimType (Newtype tname n)) = stack
   storedType = parens (text "Stored" <+> text typename)
   packRep = text "pack" <> text typename
 
-typeDecl (PrimType (EnumType tname s es)) = stack
+typeDecl t@(PrimType (EnumType tname s es)) = stack
   [ text "newtype" <+> text typename <+> equals
   , indent 2 $ text typename <+> align
         (lbrace <+> text ("un" ++ typename) <+> text "::" <+>
@@ -206,14 +223,14 @@ typeDecl (PrimType (EnumType tname s es)) = stack
       | (i,e) <- es ]
   , empty
   , packRep <+> colon <> colon <+> text "WrappedPackRep" <+> storedType
-  , packRep <+> equals <+> text "wrapPackRep" <+> dquotes (text typename) <+> text "$"
-  , indent 2 $ text "repackV" <+> text typename  <+> text ("un" ++ typename) <+> text "packRep"
+  , packRep <+> equals <+> text "wrapPackRep" <+> dquotes (text tname) <+> text "$"
+  , indent 2 $ text "repackV" <+> text typename <+> text ("un" ++ typename) <+> text "packRep"
   , empty
   , text "instance Packable" <+> storedType <+> text "where"
   , indent 2 $ text "packRep" <+> equals <+> text "wrappedPackRep" <+> packRep
   , empty
-  , text (userEnumValueName tname) <> text "TypesModule :: Module"
-  , text (userEnumValueName tname) <> text "TypesModule" <+> equals
+  , text (ivoryPackageName t) <+> text ":: Module"
+  , text (ivoryPackageName t) <+> equals
     <+> text "package"
     <+> dquotes (text (userTypeStructName tname) <> text "_types")
     <+> text "$ do"

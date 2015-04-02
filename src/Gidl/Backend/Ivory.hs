@@ -15,6 +15,7 @@ import Text.PrettyPrint.Mainland
 ivoryBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
 ivoryBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
   [ cabalFileArtifact cf
+  , artifactPath "tests" $ codegenTest namespace
   , makefile
   ] ++
   [ artifactPath "src" m | m <- sourceMods
@@ -31,7 +32,9 @@ ivoryBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
             ++ [ typeUmbrella namespace userDefinedTypes
                , unpackModule namespace
                ]
-  cf = (defaultCabalFile pkgname cabalmods deps)
+  cf = (defaultCabalFile pkgname cabalmods deps) { executables = [ cg_exe ] }
+  cg_exe = defaultCabalExe (pkgname ++ "-gen") "CodeGen.hs"
+              (deps ++ (words "ivory-backend-c") ++ [pkgname])
   cabalmods = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
   deps = words "ivory ivory-stdlib ivory-serialize"
 
@@ -58,10 +61,24 @@ makefile = artifactText "Makefile" $
     , text "\tcabal sandbox add-source $(IVORY_REPO)/ivory-artifact"
     , text "\tcabal sandbox add-source $(IVORY_REPO)/ivory-serialize"
     , text "\tcabal sandbox add-source $(IVORY_REPO)/ivory-stdlib"
+    , text "\tcabal sandbox add-source $(IVORY_REPO)/ivory-opts"
+    , text "\tcabal sandbox add-source $(IVORY_REPO)/ivory-backend-c"
     , text "\tcabal install --enable-tests --dependencies-only"
     , empty
     , text "test:"
-    , text "\tcabal test"
+    , text "\tcabal run -- --src-dir=codegen-out"
     , empty
     ]
+
+codegenTest :: [String] -> Artifact
+codegenTest modulepath = artifactText "CodeGen.hs" $
+  prettyLazyText 80 $ stack
+    [ text "module Main where"
+    , text "import Ivory.Compile.C.CmdlineFrontend"
+    , text "import Ivory.Serialize"
+    , text "import" <+> cat (punctuate dot (map text modulepath)) <> text ".Types"
+    , text "main :: IO ()"
+    , text "main = compile (serializeModule:typeModules) serializeArtifacts"
+    ]
+
 

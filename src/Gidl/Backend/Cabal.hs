@@ -15,6 +15,7 @@ data CabalFile =
     , hs_source_dirs :: [String]
     , default_language :: String
     , ghc_options :: String
+    , executables :: [CabalExe]
     , tests :: [CabalTest]
     } deriving (Eq, Show)
 
@@ -27,6 +28,14 @@ data CabalTest =
     , test_build_depends :: [String]
     } deriving (Eq, Show)
 
+data CabalExe =
+  CabalExe
+    { exe_name :: String
+    , exe_hs_source_dirs :: [String]
+    , exe_main_is :: String
+    , exe_build_depends :: [String]
+    } deriving (Eq, Show)
+
 defaultCabalFile :: String -> [String] -> [String] -> CabalFile
 defaultCabalFile name_ exposed_modules_ build_depends_ = CabalFile
   { name = name_
@@ -37,7 +46,16 @@ defaultCabalFile name_ exposed_modules_ build_depends_ = CabalFile
   , hs_source_dirs = ["src"]
   , default_language = "Haskell2010"
   , ghc_options = "-Wall"
+  , executables = []
   , tests = []
+  }
+
+defaultCabalExe :: String -> String -> [String] -> CabalExe
+defaultCabalExe name_ main_ build_depends_ = CabalExe
+  { exe_name = name_
+  , exe_hs_source_dirs = ["tests"]
+  , exe_main_is = main_
+  , exe_build_depends = "base >= 4.7" : build_depends_
   }
 
 defaultCabalTest :: String -> String -> [String] -> CabalTest
@@ -68,8 +86,19 @@ cabalFileArtifact CabalFile{..} = artifactText (name ++ ".cabal") $
       , text "default-language:" <+> text default_language
       , text "ghc-options:" <+> text ghc_options
       ]
-    , stack [ cabalTestDoc t | t <- tests ]
+    , stack [ empty </> cabalExeDoc e | e <- executables ]
+    , stack [ empty </> cabalTestDoc t | t <- tests ]
     ]
+
+cabalExeDoc :: CabalExe -> Doc
+cabalExeDoc CabalExe{..} =
+  text "executable" <+> text exe_name </> indent 2 (stack
+    [ text "main-is:" <+> text exe_main_is
+    , text "hs-source-dirs:" <+> sep (punctuate comma (map text exe_hs_source_dirs))
+    , text "build-depends:" <+> align (stack (punctuate comma (map text exe_build_depends)))
+    , text "default-language: Haskell2010"
+    , text "ghc-options: -Wall"
+    ])
 
 cabalTestDoc :: CabalTest -> Doc
 cabalTestDoc CabalTest{..} =
