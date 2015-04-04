@@ -146,7 +146,7 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
                          , indent 2 $ stack
                              [ text "ident <- local (ival (" <+> ppr h <+> text ":: Uint32))"
                              , text "packInto arr o (constRef ident)"
-                             , text "packInto arr (o + sizeOf (Proxy :: Proxy (Stored Uint32))) m"
+                             , text "packInto arr (o + fromInteger (packSize (packRep :: PackRep (Stored Uint32)))) m"
                              , text "offs += required_size"
                              ]
                          , text "return sufficient_space"
