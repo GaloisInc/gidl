@@ -65,14 +65,14 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
         [ text ("put" ++ typeName)
             <+> parens (text (constructorName n) <+> text "m")
             <+> equals
-            <+> text "put" <> text (cerealSize Bits32) <+> ppr h <+> text ">>"
+            <+> primTypePutter (sizedPrim Bits32) <+> ppr h <+> text ">>"
             <+> text "put" <+> text "m"
         | (h, Message n _) <- schema ]
     , empty
     , text ("get" ++ typeName) <+> colon <> colon <+> text "Get" <+> text typeName
     , text ("get" ++ typeName) <+> equals <+> text "do"
     , indent 2 $ stack
-        [ text "a" <+> text "<- get" <> text (cerealSize Bits32)
+        [ text "a <-" <+> primTypeGetter (sizedPrim Bits32)
         , text "case a of"
         , indent 2 $ stack $
             [ ppr h <+> text "-> do" </> (indent 2 (stack

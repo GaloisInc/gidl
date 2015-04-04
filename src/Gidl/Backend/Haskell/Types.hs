@@ -30,17 +30,17 @@ typeModule modulepath t =
               , text "import qualified Test.QuickCheck as Q"
               ])
     , empty
-    , typeDecl typename t
+    , typeDecl t
     ]
   where
   imports = map (importDecl tm)
           $ nub
           $ map (importType . PrimType)
           $ typeLeaves t
-  typename = typeModuleName t
   tm mname = mconcat $ punctuate dot
                      $ map text (modulepath ++ [mname])
 
+  --typename = typeModuleName t
 typeHaskellType :: Type -> String
 typeHaskellType (StructType tn _) = userTypeModuleName tn
 typeHaskellType (PrimType (Newtype tn _)) = userTypeModuleName tn
@@ -93,25 +93,25 @@ arbitraryInstance tname = stack
       ]
   ]
 
-typeDecl :: String -> Type -> Doc
-typeDecl tname (StructType _ ss) = stack
+typeDecl :: Type -> Doc
+typeDecl t@(StructType _ ss) = stack
   [ text "data" <+> text tname <+> equals
   , indent 2 $ text tname
   , indent 4 $ encloseStack lbrace (rbrace <+> deriv) comma
-      [ text i <+> colon <> colon <+> text (typeHaskellType (PrimType t))
-      | (i,t) <- ss ]
+      [ text i <+> colon <> colon <+> text (typeHaskellType (PrimType st))
+      | (i,st) <- ss ]
   , empty
   , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
   , text ("put" ++ tname) <+> text tname <> text "{..}" <+> equals <+> text "do"
   , indent 2 $ stack
-      [ text "put" <+> text i
-      | (i,_) <- ss ]
+      [ primTypePutter st <+> text i
+      | (i,st) <- ss ]
   , empty
   , text ("get" ++ tname) <+> colon <> colon <+> text "Get" <+> text tname
   , text ("get" ++ tname) <+> equals <+> text "do"
   , indent 2 $ stack $
-      [ text i <+> text "<- get"
-      | (i,_) <- ss ] ++
+      [ text i <+> text "<-" <+> primTypeGetter st
+      | (i,st) <- ss ] ++
       [ text "return" <+> text tname <> text "{..}" ]
   , empty
   , serializeInstance tname
@@ -125,9 +125,11 @@ typeDecl tname (StructType _ ss) = stack
   , empty
   , arbitraryInstance tname
   ]
-  where deriv = typeDeriving ["Eq", "Show", "Data", "Typeable"]
+  where
+  tname = typeModuleName t
+  deriv = typeDeriving ["Eq", "Show", "Data", "Typeable"]
 
-typeDecl tname (PrimType (Newtype _ n)) = stack
+typeDecl t@(PrimType (Newtype _ n)) = stack
   [ text "newtype" <+> text tname <+> equals
   , indent 2 $ text tname <+> align
         (lbrace <+> text ("un" ++ tname) <+> text "::" <+>
@@ -135,15 +137,17 @@ typeDecl tname (PrimType (Newtype _ n)) = stack
          rbrace <+> typeDeriving ["Eq", "Show", "Data", "Typeable"])
   , empty
   , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
-  , text ("put" ++ tname) <+> parens (text tname <+> text "a") <+> equals <+> text "put a"
+  , text ("put" ++ tname) <+> parens (text tname <+> text "a") <+> equals
+      <+> primTypePutter n <+> text "a"
   , empty
   , text ("get" ++ tname) <+> colon <> colon <+> text "Get" <+> text tname
   , text ("get" ++ tname) <+> equals <+> text "do"
   , indent 2 $ stack $
-      [ text "a" <+> text "<- get"
+      [ text "a <-" <+> primTypeGetter n
       , text "return" <+> parens (text tname <+> text "a") ]
   , empty
   , serializeInstance tname
+  , empty
   , text ("arbitrary" ++ tname) <+> colon <> colon <+> text "Q.Gen" <+> text tname
   , text ("arbitrary" ++ tname) <+> equals <+> text "do"
   , indent 2 $ stack $
@@ -152,8 +156,10 @@ typeDecl tname (PrimType (Newtype _ n)) = stack
   , empty
   , arbitraryInstance tname
   ]
+  where
+  tname = typeModuleName t
 
-typeDecl tname (PrimType (EnumType _ s es)) = stack
+typeDecl t@(PrimType (EnumType _ s es)) = stack
   [ text "data" <+> text tname
   , indent 2 $ encloseStack equals deriv (text "|")
       [ text (userTypeModuleName i)
@@ -170,13 +176,13 @@ typeDecl tname (PrimType (EnumType _ s es)) = stack
   , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
   , stack
       [ text ("put" ++ tname) <+> text (userTypeModuleName i) <+> equals <+> 
-          text "put" <> text (cerealSize s) <+> ppr e
+          primTypePutter (sizedPrim s) <+> ppr e
       | (i,e) <- es ]
   , empty
   , text ("get" ++ tname) <+> colon <> colon <+> text "Get" <+> text tname
   , text ("get" ++ tname) <+> equals <+> text "do"
   , indent 2 $ stack
-      [ text "a" <+> text "<- get" <> text (cerealSize s)
+      [ text "a <-" <+> primTypeGetter (sizedPrim s)
       , text "case a of"
       , indent 2 $ stack $
           [ ppr e <+> text "-> return" <+> text (userTypeModuleName i)
@@ -193,16 +199,38 @@ typeDecl tname (PrimType (EnumType _ s es)) = stack
   , empty
   , arbitraryInstance tname
   ]
-  where deriv = typeDeriving ["Eq", "Show", "Ord", "Data", "Typeable"]
+  where
+  deriv = typeDeriving ["Eq", "Show", "Ord", "Data", "Typeable"]
+  tname = typeModuleName t
 
-typeDecl tn _ = error ("typeDecl: cannot create decl for built in type " ++ tn)
+typeDecl t = error ("typeDecl: cannot create Haskell decl for type " ++ show t)
 
-cerealSize :: Bits -> String
-cerealSize Bits8  = "Word8"
-cerealSize Bits16 = "Word16be"
-cerealSize Bits32 = "Word32be"
-cerealSize Bits64 = "Word64be"
+primTypePutter :: PrimType -> Doc
+primTypePutter (Newtype tn _) = text "put" <> text (userTypeModuleName tn)
+primTypePutter (EnumType tn _ _) = text "put" <> text (userTypeModuleName tn)
+primTypePutter (AtomType (AtomInt _)) = text "put"
+primTypePutter (AtomType (AtomWord Bits8)) = text "putWord8"
+primTypePutter (AtomType (AtomWord Bits16)) = text "putWord16be"
+primTypePutter (AtomType (AtomWord Bits32)) = text "putWord32be"
+primTypePutter (AtomType (AtomWord Bits64)) = text "putWord64be"
+primTypePutter (AtomType AtomFloat) = text "putFloat32be"
+primTypePutter (AtomType AtomDouble) = text "putFloat64be"
+primTypePutter VoidType = text "put"
 
+primTypeGetter :: PrimType -> Doc
+primTypeGetter (Newtype tn _) = text "get" <> text (userTypeModuleName tn)
+primTypeGetter (EnumType tn _ _) = text "get" <> text (userTypeModuleName tn)
+primTypeGetter (AtomType (AtomInt _)) = text "get"
+primTypeGetter (AtomType (AtomWord Bits8)) = text "getWord8"
+primTypeGetter (AtomType (AtomWord Bits16)) = text "getWord16be"
+primTypeGetter (AtomType (AtomWord Bits32)) = text "getWord32be"
+primTypeGetter (AtomType (AtomWord Bits64)) = text "getWord64be"
+primTypeGetter (AtomType AtomFloat) = text "getFloat32be"
+primTypeGetter (AtomType AtomDouble) = text "getFloat64be"
+primTypeGetter VoidType = text "get"
+
+sizedPrim :: Bits -> PrimType
+sizedPrim b = AtomType (AtomWord b)
 
 typeDeriving :: [String] -> Doc
 typeDeriving cs = text "deriving" <+> parens (commasep (map text cs))
