@@ -13,10 +13,10 @@ import Gidl.Backend.Ivory.Types
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
-interfaceModule :: [String] -> Interface -> Artifact
-interfaceModule modulepath ir =
-  artifactPath (intercalate "/" modulepath) $
-  artifactText ((ifModuleName ir) ++ ".hs") $
+interfaceModule :: [String] -> Interface -> Schema -> Artifact
+interfaceModule modulepath ir schema =
+  artifactPath (intercalate "/" (modulepath ++ [ifModuleName ir])) $
+  artifactText (schemaName ++ ".hs") $
   prettyLazyText 80 $
   stack
     [ text "{-# LANGUAGE DataKinds #-}"
@@ -25,16 +25,15 @@ interfaceModule modulepath ir =
     , text "{-# OPTIONS_GHC -fno-warn-unused-imports #-}"
     , empty
     , text "module"
-      <+> im (ifModuleName ir)
+      <+> im (ifModuleName ir) <> dot <> text schemaName
       <+> text "where"
     , empty
     , stack $ typeimports ++ extraimports
     , empty
-    , schemaDoc (ifModuleName ir) (producerSchema ir)
-    , empty
-    , schemaDoc (ifModuleName ir) (consumerSchema ir)
+    , schemaDoc (ifModuleName ir) schema
     ]
   where
+  (Schema schemaName _) = schema
   rootpath = reverse . drop 1 . reverse
   modAt path = mconcat (punctuate dot (map text path))
   im mname = modAt (modulepath ++ [mname])

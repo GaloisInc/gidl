@@ -2,6 +2,7 @@ module Gidl.Backend.Ivory where
 
 import Gidl.Types
 import Gidl.Interface
+import Gidl.Schema
 import Gidl.Backend.Cabal
 import Gidl.Backend.Ivory.Types
 import Gidl.Backend.Ivory.Interface
@@ -24,11 +25,13 @@ ivoryBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
   userDefinedTypes = [ t | (_,t) <- te, isUserDefined t ]
   tmods = [ typeModule (namespace ++ ["Types"]) t
           | t <- userDefinedTypes ]
-  imods =[ interfaceModule (namespace ++ ["Interface"]) i
+  imods =[ [ interfaceModule (namespace ++ ["Interface"]) i (producerSchema i)
+           , interfaceModule (namespace ++ ["Interface"]) i (consumerSchema i)
+           ]
          | (_iname, i) <- ie
          ]
   sourceMods = tmods
-            ++ imods
+            ++ concat imods
             ++ [ typeUmbrella namespace userDefinedTypes
                , unpackModule namespace
                ]
