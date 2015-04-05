@@ -74,12 +74,12 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     , text (parserName typeName) <+> align
         (stack [ text ":: forall s0 r b s2 s3 n"
                , text " . (ANat n)"
-               , text "=>" <+> text typeName
-               , text "-> ConstRef s2 (Array n (Stored Uint8))"
+               , text "=> ConstRef s2 (Array n (Stored Uint8))"
                , text "-> Ref s3 (Stored Uint32)"
+               , text "->" <+> text typeName
                , text "-> Ivory ('Effects r b (Scope s0)) IBool"
                ])
-    , text (parserName typeName) <+> text "iface arr offs = do"
+    , text (parserName typeName) <+> text "arr offs iface = do"
     , indent 2 $ stack
         [ text "unpackWithCallback arr offs $ \\tag_ref -> do"
         , indent 2 $ text "(tag :: Uint32) <- deref tag_ref"
