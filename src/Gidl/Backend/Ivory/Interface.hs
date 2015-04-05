@@ -59,57 +59,39 @@ schemaDoc interfaceName (Schema schemaName [])     =
 schemaDoc interfaceName (Schema schemaName schema) = stack
     [ text "-- Define" <+> text schemaName  <+> text "schema for"
         <+> text interfaceName <+> text "interface"
-    , text "data" <+> text typeName <> text "Handler"
-    , indent 2 $ encloseStack equals empty (text "|")
+    , empty
+    , text "data" <+> constructor <+> equals <+> constructor
+    , indent 2 $ encloseStack lbrace rbrace comma
         [ case t of
-            PrimType VoidType -> text (handlerName n)
-                <+> text "(forall eff . Ivory eff ())"
-            _ -> text (handlerName n)
-                  <+> parens (text "forall s eff . ConstRef s" 
+            PrimType VoidType -> text (accessorName n) <+> colon <> colon
+                <+> text "(forall s r b . Ivory ('Effects r b (Scope s)) IBool)"
+            _ -> text (accessorName n) <+> colon <> colon
+                  <+> parens (text "forall s r b s' . ConstRef s'" 
                     <+> parens (text (typeIvoryType t))
-                    <+> text "-> Ivory eff ()")
+                    <+> text "-> Ivory ('Effects r b (Scope s)) IBool")
         | (_, (Message n t)) <- schema
         ]
     , empty
     , text (parserName typeName) <+> align
         (stack [ text ":: forall s0 r b s2 s3 n"
                , text " . (ANat n)"
-               , text "=>" <+> brackets (text typeName <> text "Handler")
+               , text "=>" <+> text typeName
                , text "-> ConstRef s2 (Array n (Stored Uint8))"
                , text "-> Ref s3 (Stored Uint32)"
-               , text "-> Ivory ('Effects r b (Scope s0)) ()"
+               , text "-> Ivory ('Effects r b (Scope s0)) IBool"
                ])
-    , text (parserName typeName) <+> text "hs arr offs = do"
+    , text (parserName typeName) <+> text "iface arr offs = do"
     , indent 2 $ stack
         [ text "unpackWithCallback arr offs $ \\tag_ref -> do"
-        , indent 2 $ text "tag <- deref tag_ref"
-        , indent 2 $ text "cond_ (map (aux tag) hs)"
-        , text "where"
-        , text "aux :: Uint32"
-        , text "    ->" <+> text typeName <> text "Handler"
-        , text "    -> Cond ('Effects r b (Scope s0)) ()"
-        , stack 
-           [ text "aux ident" <+> parens (text (handlerName n) <+> text "k")
-              <+> equals
-              <+> parens (text "ident ==?" <+> ppr h) <+> text "==>"
-              </> indent 2 callback
+        , indent 2 $ text "(tag :: Uint32) <- deref tag_ref"
+        , indent 2 $ text "cond" <+> encloseStack lbracket rbracket comma
+           [ parens (text "tag ==?" <+> ppr h) <+> text "==>" <+> unpackK
            | (h, Message n t) <- schema
-           , let callback = case t of
-                   PrimType VoidType -> text "k"
-                   _ -> text "unpackWithCallback arr offs k"
+           , let k = text (accessorName n) <+> text "iface"
+           , let unpackK = case t of
+                   PrimType VoidType -> k
+                   _ -> text "unpackWithCallback arr offs" <+> parens k
            ]
-        ]
-    , empty
-    , text "data" <+> senderConstructor <+> equals <+> senderConstructor
-    , indent 2 $ encloseStack lbrace rbrace comma
-        [ case t of
-            PrimType VoidType -> text (senderName n) <+> colon <> colon
-                <+> text "(forall s r b . Ivory ('Effects r b (Scope s)) IBool)"
-            _ -> text (senderName n) <+> colon <> colon
-                  <+> parens (text "forall s r b s' . ConstRef s'" 
-                    <+> parens (text (typeIvoryType t))
-                    <+> text "-> Ivory ('Effects r b (Scope s)) IBool")
-        | (_, (Message n t)) <- schema
         ]
     , empty
     , text (userEnumValueName typeName) <> text "Sender" <+> align
@@ -117,13 +99,13 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
                , text " . (ANat n)"
                , text "=> Ref s1 (Array n (Stored Uint8))"
                , text "-> Ref s2 (Stored Uint32)"
-               , text "->" <+> senderConstructor
+               , text "->" <+> constructor
                ])
     , text (userEnumValueName typeName) <> text "Sender arr offs" <+> equals
-        <+> senderConstructor
+        <+> constructor
     , indent 2 $ encloseStack lbrace rbrace comma
         [ case t of
-            PrimType VoidType -> text (senderName n) <+> equals <+> text "do" </> indent 4
+            PrimType VoidType -> text (accessorName n) <+> equals <+> text "do" </> indent 4
                   (stack [ text "o <- deref offs"
                          , text "let required_size = fromInteger (packSize (packRep :: PackRep (Stored Uint32)))"
                          , text "    sufficient_space = (o + required_size) <? arrayLen arr"
@@ -136,7 +118,7 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
                          , text "return sufficient_space"
                          ])
 
-            _ -> text (senderName n) <+> equals <+> text "\\m -> do" </> indent 4
+            _ -> text (accessorName n) <+> equals <+> text "\\m -> do" </> indent 4
                   (stack [ text "o <- deref offs"
                          , text "let required_size = fromInteger (packSize (packRep :: PackRep"
                              <+> parens (text (typeIvoryType t)) <+> text ")"
@@ -155,9 +137,8 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
         ]
     ]
   where
-  senderConstructor = text typeName <> text "Sender"
-  handlerName n = userTypeModuleName n ++ schemaName ++ "Handler"
-  senderName n = userEnumValueName n ++ schemaName ++ "Sender"
+  constructor = text typeName
+  accessorName n = userEnumValueName n ++ schemaName
   typeName = interfaceName ++ schemaName
   parserName tn = userEnumValueName tn ++ "Parser"
 

@@ -284,6 +284,6 @@ importDecl _ NoImport = empty
 encloseStack :: Doc -> Doc -> Doc -> [Doc] -> Doc
 encloseStack l r p ds = case ds of
   [] -> empty -- l </> r
-  [d] -> l <+> d </> r
+  [d] -> align (l <+> d </> r)
   _ -> align (l <+> (folddoc (\a b -> a </> p <+> b) ds) </> r)
 
