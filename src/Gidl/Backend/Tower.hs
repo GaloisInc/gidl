@@ -12,6 +12,7 @@ import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Cabal
 import Gidl.Backend.Ivory (dotwords, ivorySources)
+import Gidl.Backend.Tower.Interface
 
 towerBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
 towerBackend te ie pkgname namespace_raw =
@@ -21,9 +22,12 @@ towerBackend te ie pkgname namespace_raw =
   , artifactPath "tests" (codegenTest namespace)
   ] ++ map (artifactPath "src") sources
   where
-  sources = isources ++ []
-
   namespace = dotwords namespace_raw
+
+  sources = isources ++ tsources
+
+  tsources = towerSources ie (namespace ++ ["Tower"])
+
   isources = ivorySources te ie (namespace ++ ["Ivory"])
 
   cf = (defaultCabalFile pkgname cabalmods deps) { executables = [ cg_exe ] }
@@ -31,6 +35,15 @@ towerBackend te ie pkgname namespace_raw =
   deps = words "ivory ivory-stdlib ivory-serialize tower"
   cg_exe = defaultCabalExe (pkgname ++ "-gen") "CodeGen.hs"
             (deps ++ (words "tower-config tower-freertos-stm32") ++ [pkgname])
+
+
+towerSources :: InterfaceEnv -> [String] -> [Artifact]
+towerSources (InterfaceEnv ie) namespace = towerInterfaces
+  where
+  towerInterfaces = concat
+    [ [ interfaceModule (namespace ++ ["Tower", "Interface"]) i (producerSchema i)
+      , interfaceModule (namespace ++ ["Tower", "Interface"]) i (consumerSchema i) ]
+    | (_iname, i) <- ie ]
 
 makefile :: Artifact
 makefile = artifactCabalFile P.getDataDir "support/tower/Makefile"
