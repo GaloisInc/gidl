@@ -15,6 +15,7 @@ import Ivory.Artifact
 import Gidl.Parse
 import Gidl.Backend.Haskell
 import Gidl.Backend.Ivory
+import Gidl.Backend.Tower
 
 data OptParser opt = OptParser [String] (opt -> opt)
 instance Monoid (OptParser opt) where
@@ -38,6 +39,7 @@ parseOptions opts args = case getOpt Permute opts args of
 data Backend
   = HaskellBackend
   | IvoryBackend
+  | TowerBackend
   deriving (Eq, Show)
 
 data Opts = Opts
@@ -65,8 +67,9 @@ setBackend :: String -> OptParser Opts
 setBackend b = case map toUpper b of
   "HASKELL" -> success (\o -> o { backend = HaskellBackend })
   "IVORY"   -> success (\o -> o { backend = IvoryBackend })
+  "TOWER"   -> success (\o -> o { backend = TowerBackend })
   _         -> invalid ("\"" ++ b ++ "\" is not a valid backend.\n"
-                          ++ "Supported backends: haskell, ivory")
+                          ++ "Supported backends: haskell, ivory, tower")
 
 setIdlPath :: String -> OptParser Opts
 setIdlPath p = success (\o -> o { idlpath = p })
@@ -133,6 +136,8 @@ run = do
           haskellBackend te ie (packagename opts) (namespace opts)
         IvoryBackend -> artifactBackend opts $
           ivoryBackend te ie (packagename opts) (namespace opts)
+        TowerBackend -> artifactBackend opts $
+          towerBackend te ie (packagename opts) (namespace opts)
 
   where
   artifactBackend :: Opts -> [Artifact] -> IO ()

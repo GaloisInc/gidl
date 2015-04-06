@@ -11,6 +11,7 @@ create-sandbox:
 
 test: haskell-backend-test
 test: ivory-backend-test
+test: tower-backend-test
 
 haskell-backend-test:
 	cabal run gidl -- -b haskell \
@@ -39,8 +40,23 @@ ivory-backend-test:
 ivory-backend-test-clean:
 	-rm -rf tests/gidl-ivory-backend-test
 
+tower-backend-test:
+	cabal run gidl -- -b tower \
+		--debug \
+		-i tests/example.idl \
+		-o tests/gidl-tower-backend-test \
+		-p gidl-tower-backend-test \
+		-n Gidl.Test
+	make -C tests/gidl-tower-backend-test create-sandbox
+	make -C tests/gidl-tower-backend-test
+	make -C tests/gidl-tower-backend-test test
+
+tower-backend-test-clean:
+	-rm -rf tests/gidl-tower-backend-test
+
 
 clean: ivory-backend-test-clean
+clean: tower-backend-test-clean
 clean: haskell-backend-test-clean
 
 distclean: clean

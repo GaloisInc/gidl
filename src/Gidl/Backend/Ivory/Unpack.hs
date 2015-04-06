@@ -12,4 +12,4 @@ unpackModule modulepath =
   artifactCabalFileTemplate P.getDataDir fname
     [("module_path", intercalate "." modulepath )]
   where
-  name = "support/ivory/Unpack.hs.template"
+  fname = "support/ivory/Unpack.hs.template"
