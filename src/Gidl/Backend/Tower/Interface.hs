@@ -9,7 +9,7 @@ import Gidl.Types
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
-import Gidl.Backend.Ivory.Interface (ifModuleName)
+import Gidl.Backend.Ivory.Interface (ifModuleName, parserName)
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
@@ -77,9 +77,48 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
                , text "=> ChanOutput (Array n (Stored Uint8))"
                , text "-> Tower e" <+> parens (constructor <+> text "ChanOutput")
                ])
-    , text (inputFuncName typeName) <+> text "frame_ch" <+> equals
+    , text (inputFuncName typeName) <+> text "frame_ch" <+> equals <+> text "do"
     , indent 2 $ stack
-        [ text "return undefined"
+        [ stack [ chanName n <+> text "<- channel"
+                | (_, Message n _) <- schema ]
+        , empty
+        , text "monitor" <+> dquotes (text (outputFuncName typeName))
+            <+> text "$ do"
+        , indent 2 $ stack
+            [ text "handler frame_ch \"parse_frame\" $ do" 
+            , indent 2 $ stack
+                [ stack [ emitterName n <+> text "<- emitter"
+                           <+> parens (text "fst" <+> chanName n)
+                           <+> text "1"
+                        | (_, Message n _) <- schema
+                        ]
+                , text "callback $ \\f -> do"
+                , indent 2 $ stack
+                    [ text "offs <- local izero"
+                    , text "_ <- I." <> text (parserName typeName)
+                        <+> text "f offs $ I." <> constructor
+                    , indent 2 $ encloseStack lbrace rbrace comma
+                        [ case t of
+                            PrimType VoidType ->
+                                 text "I." <> text (accessorName n) <+> equals
+                                  <+> text "emitV" <+> emitterName n
+                                  <+> text "true >> return true"
+                            _ -> text "I." <> text (accessorName n) <+> equals
+                                  <+> text "\\v -> emit" <+> emitterName n
+                                  <+> text "v >> return true"
+                        | (_, Message n t) <- schema
+                        ]
+                    , text "return ()"
+                    ]
+                ]
+
+            ]
+        , empty
+        , text "return" <+> constructor <+> encloseStack lbrace rbrace comma
+            [ text (accessorName n) <+> equals
+              <+> parens (text "snd" <+> chanName n)
+            | (_, Message n _) <- schema
+            ]
         ]
     , empty
     , text (outputFuncName typeName) <> align
@@ -89,7 +128,13 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
                ])
     , text (outputFuncName typeName) <+> text "a" <+> equals <+> text "do"
     , indent 2 $ stack
-        [ text "return undefined"
+        [ text "frame_ch <- channel"
+        , text "monitor" <+> dquotes (text (outputFuncName typeName))
+            <+> text "$ do"
+        , indent 2 $ stack
+            [ text "return ()"
+            ]
+        , text "return (snd frame_ch)"
         ]
     ]
   where
@@ -98,4 +143,7 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
   typeName = interfaceName ++ schemaName
   inputFuncName tn = userEnumValueName tn ++ "Input"
   outputFuncName tn = userEnumValueName tn ++ "Output"
+
+  chanName s = text "ch_" <> text s
+  emitterName s = text "emitter_" <> text s
 

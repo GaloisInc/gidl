@@ -139,7 +139,9 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
   constructor = text typeName
   accessorName n = userEnumValueName n ++ schemaName
   typeName = interfaceName ++ schemaName
-  parserName tn = userEnumValueName tn ++ "Parser"
+
+parserName :: String -> String
+parserName tn = userEnumValueName tn ++ "Parser"
 
 ifModuleName :: Interface -> String
 ifModuleName (Interface iname _ _) = aux iname
