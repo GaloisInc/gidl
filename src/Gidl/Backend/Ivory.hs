@@ -58,7 +58,6 @@ makefile = artifactCabalFile P.getDataDir "support/ivory/Makefile"
 
 codegenTest :: [String] -> Artifact
 codegenTest modulepath =
-  artifactPath (intercalate "/" modulepath) $
   artifactCabalFileTemplate P.getDataDir fname
     [("module_path", intercalate "." modulepath )]
   where
