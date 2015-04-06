@@ -8,6 +8,8 @@ copyright:           2015 Galois Inc
 build-type:          Simple
 cabal-version:       >=1.10
 
+data-files: support/ivory/Unpack.hs.template
+
 library
   exposed-modules:     Gidl,
                        Gidl.Parse,
@@ -27,6 +29,8 @@ library
                        Gidl.Backend.Ivory.Test,
                        Gidl.Backend.Ivory.Types,
                        Gidl.Backend.Ivory.Unpack
+
+  other-modules:       Paths_gidl
 
   build-depends:       base >=4.7 && <4.8,
                        hashable,
