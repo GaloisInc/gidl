@@ -14,7 +14,6 @@ import Gidl.Schema
 import Gidl.Backend.Cabal
 import Gidl.Backend.Ivory.Types
 import Gidl.Backend.Ivory.Interface
-import Gidl.Backend.Ivory.Unpack
 
 ivoryBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
 ivoryBackend te ie pkgname namespace_raw =
@@ -65,3 +64,10 @@ codegenTest modulepath =
   where
   fname = "support/ivory/CodeGen.hs.template"
 
+unpackModule :: [String] -> Artifact
+unpackModule modulepath =
+  artifactPath (intercalate "/" modulepath) $
+  artifactCabalFileTemplate P.getDataDir fname
+    [("module_path", intercalate "." modulepath )]
+  where
+  fname = "support/ivory/Unpack.hs.template"

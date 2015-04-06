@@ -31,7 +31,6 @@ library
                        Gidl.Backend.Ivory.Interface,
                        Gidl.Backend.Ivory.Test,
                        Gidl.Backend.Ivory.Types,
-                       Gidl.Backend.Ivory.Unpack,
                        Gidl.Backend.Tower
 
   other-modules:       Paths_gidl
