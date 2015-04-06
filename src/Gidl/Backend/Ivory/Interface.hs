@@ -93,14 +93,14 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
            ]
         ]
     , empty
-    , text (userEnumValueName typeName) <> text "Sender" <+> align
+    , text (senderName typeName) <+> align
         (stack [ text ":: forall n s1 s2"
                , text " . (ANat n)"
                , text "=> Ref s1 (Array n (Stored Uint8))"
                , text "-> Ref s2 (Stored Uint32)"
                , text "->" <+> constructor
                ])
-    , text (userEnumValueName typeName) <> text "Sender arr offs" <+> equals
+    , text (senderName typeName) <+> text "arr offs" <+> equals
         <+> constructor
     , indent 2 $ encloseStack lbrace rbrace comma
         [ case t of
@@ -142,6 +142,8 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
 
 parserName :: String -> String
 parserName tn = userEnumValueName tn ++ "Parser"
+senderName :: String -> String
+senderName tn = userEnumValueName tn ++ "Sender"
 
 ifModuleName :: Interface -> String
 ifModuleName (Interface iname _ _) = aux iname

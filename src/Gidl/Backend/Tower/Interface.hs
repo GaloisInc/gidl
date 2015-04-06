@@ -9,7 +9,7 @@ import Gidl.Types
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
-import Gidl.Backend.Ivory.Interface (ifModuleName, parserName)
+import Gidl.Backend.Ivory.Interface (ifModuleName, parserName, senderName)
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
@@ -64,9 +64,9 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     , text "data" <+> constructor <+> text "c" <+> equals <+> constructor
     , indent 2 $ encloseStack lbrace rbrace comma
         [ case t of
-            PrimType VoidType -> text (accessorName n) <+> colon <> colon
+            PrimType VoidType -> accessorName n <+> colon <> colon
                 <+> text "c (Stored IBool)"
-            _ -> text (accessorName n) <+> colon <> colon
+            _ -> accessorName n <+> colon <> colon
                     <+> text "c"
                     <+> parens (text (typeIvoryType t))
         | (_, (Message n t)) <- schema
@@ -100,10 +100,10 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
                     , indent 2 $ encloseStack lbrace rbrace comma
                         [ case t of
                             PrimType VoidType ->
-                                 text "I." <> text (accessorName n) <+> equals
+                                 text "I." <> accessorName n <+> equals
                                   <+> text "emitV" <+> emitterName n
                                   <+> text "true >> return true"
-                            _ -> text "I." <> text (accessorName n) <+> equals
+                            _ -> text "I." <> accessorName n <+> equals
                                   <+> text "\\v -> emit" <+> emitterName n
                                   <+> text "v >> return true"
                         | (_, Message n t) <- schema
@@ -115,7 +115,7 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
             ]
         , empty
         , text "return" <+> constructor <+> encloseStack lbrace rbrace comma
-            [ text (accessorName n) <+> equals
+            [ accessorName n <+> equals
               <+> parens (text "snd" <+> chanName n)
             | (_, Message n _) <- schema
             ]
@@ -132,14 +132,18 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
         , text "monitor" <+> dquotes (text (outputFuncName typeName))
             <+> text "$ do"
         , indent 2 $ stack
-            [ text "return ()"
+            [ text "handler" <+> parens (accessorName n <+> text "a")
+                <+> dquotes (accessorName n) <+> text "$ do"
+                </> indent 2 (parseEmitBody n t)
+                </> empty
+            | (_, Message n t) <- schema
             ]
         , text "return (snd frame_ch)"
         ]
     ]
   where
   constructor = text typeName
-  accessorName n = userEnumValueName n ++ schemaName
+  accessorName n = text (userEnumValueName n ++ schemaName)
   typeName = interfaceName ++ schemaName
   inputFuncName tn = userEnumValueName tn ++ "Input"
   outputFuncName tn = userEnumValueName tn ++ "Output"
@@ -147,3 +151,28 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
   chanName s = text "ch_" <> text s
   emitterName s = text "emitter_" <> text s
 
+  parseEmitBody n (PrimType VoidType) = stack
+    [ text "e <- emitter (fst frame_ch) 1"
+    , text "callback $ \\_ -> do"
+    , indent 2 $ stack
+        [ text "f <- local izero"
+        , text "o <- local izero"
+        , text "ok <-" <+> text "I." <> accessorName n
+            <+> parens (text "I." <> text (senderName typeName)
+                        <+> text "f o")
+        , text "ifte_ ok (emit e (constRef f)) (return ())"
+        ]
+    ]
+  parseEmitBody n _ = stack
+    [ text "e <- emitter (fst frame_ch) 1"
+    , text "callback $ \\w -> do"
+    , indent 2 $ stack
+        [ text "f <- local izero"
+        , text "o <- local izero"
+        , text "ok <-" <+> text "I." <> accessorName n
+            <+> parens (text "I." <> text (senderName typeName)
+                        <+> text "f o")
+            <+> text "w"
+        , text "ifte_ ok (emit e (constRef f)) (return ())"
+        ]
+    ]
