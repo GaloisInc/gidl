@@ -12,6 +12,7 @@ import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Cabal
 import Gidl.Backend.Ivory (dotwords, ivorySources)
+import Gidl.Backend.Ivory.Interface (ifModuleName)
 import Gidl.Backend.Tower.Interface
 
 towerBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
@@ -19,7 +20,7 @@ towerBackend te ie pkgname namespace_raw =
   [ cabalFileArtifact cf
   , makefile
   , defaultconf
-  , artifactPath "tests" (codegenTest namespace)
+  , artifactPath "tests" (codegenTest ie namespace)
   ] ++ map (artifactPath "src") sources
   where
   namespace = dotwords namespace_raw
@@ -41,8 +42,8 @@ towerSources :: InterfaceEnv -> [String] -> [Artifact]
 towerSources (InterfaceEnv ie) namespace = towerInterfaces
   where
   towerInterfaces = concat
-    [ [ interfaceModule (namespace ++ ["Tower", "Interface"]) i (producerSchema i)
-      , interfaceModule (namespace ++ ["Tower", "Interface"]) i (consumerSchema i) ]
+    [ [ interfaceModule (namespace ++ ["Interface"]) i (producerSchema i)
+      , interfaceModule (namespace ++ ["Interface"]) i (consumerSchema i) ]
     | (_iname, i) <- ie ]
 
 makefile :: Artifact
@@ -51,10 +52,33 @@ makefile = artifactCabalFile P.getDataDir "support/tower/Makefile"
 defaultconf :: Artifact
 defaultconf = artifactCabalFile P.getDataDir "support/tower/default.conf"
 
-codegenTest :: [String] -> Artifact
-codegenTest modulepath =
+codegenTest :: InterfaceEnv -> [String] -> Artifact
+codegenTest (InterfaceEnv ie) modulepath =
   artifactCabalFileTemplate P.getDataDir fname
-    [("module_path", intercalate "." modulepath )]
+    [("module_path",intercalate "." modulepath)
+    ,("imports", intercalate "\n"
+                  [ "import "
+                    ++ interfaceImport (ifModuleName i) "Producer"
+                    ++ "\n"
+                    ++ "import "
+                    ++ interfaceImport (ifModuleName i) "Consumer"
+                  | (_, i) <- ie
+                  ])
+    ,("app_body", intercalate "\n  " (concat [ interfaceTest i | (_, i) <- ie ]))
+    ]
   where
   fname = "support/tower/CodeGen.hs.template"
+  interfaceImport i j = intercalate "." (modulepath ++ ["Tower", "Interface", i, j])
 
+  interfaceTest :: Interface -> [String]
+  interfaceTest i = [ schemaTest (producerSchema i)
+                    , schemaTest (consumerSchema i)
+                    ]
+    where
+    schemaTest :: Schema -> String
+    schemaTest (Schema _ []) = []
+    schemaTest (Schema schemaName _)
+      =  (inputFuncName ((ifModuleName i) ++ schemaName))
+      ++ " (snd c) >>= \\i -> "
+      ++ (outputFuncName ((ifModuleName i) ++ schemaName))
+      ++ " i >>= \\(_ :: ChanOutput (Array 80 (Stored Uint8))) -> return ()"

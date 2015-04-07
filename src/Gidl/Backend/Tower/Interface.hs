@@ -34,7 +34,7 @@ interfaceModule modulepath ir schema =
     ]
   where
   (Schema schemaName _) = schema
-  rootpath = reverse . drop 3 . reverse
+  rootpath = reverse . drop 2 . reverse
   modAt path = mconcat (punctuate dot (map text path))
   im mname = modAt (modulepath ++ [mname])
   tm mname = modAt (rootpath modulepath ++ ["Ivory","Types", mname])
@@ -46,7 +46,8 @@ interfaceModule modulepath ir schema =
               $ map importType
               $ interfaceTypes ir
 
-  extraimports = [ text "import qualified" <+> ivoryIFMod <+> text "as I"
+  extraimports = [ text "import" <+> modAt (rootpath modulepath ++ ["Ivory", "Types"])
+                 , text "import qualified" <+> ivoryIFMod <+> text "as I"
                  , text "import Ivory.Language"
                  , text "import Ivory.Stdlib"
                  , text "import Ivory.Tower"
@@ -79,7 +80,8 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
                ])
     , text (inputFuncName typeName) <+> text "frame_ch" <+> equals <+> text "do"
     , indent 2 $ stack
-        [ stack [ chanName n <+> text "<- channel"
+        [ towerMonadDependencies
+        , stack [ chanName n <+> text "<- channel"
                 | (_, Message n _) <- schema ]
         , empty
         , text "monitor" <+> dquotes (text (outputFuncName typeName))
@@ -128,7 +130,8 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
                ])
     , text (outputFuncName typeName) <+> text "a" <+> equals <+> text "do"
     , indent 2 $ stack
-        [ text "frame_ch <- channel"
+        [ towerMonadDependencies
+        , text "frame_ch <- channel"
         , text "monitor" <+> dquotes (text (outputFuncName typeName))
             <+> text "$ do"
         , indent 2 $ stack
@@ -145,8 +148,6 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
   constructor = text typeName
   accessorName n = text (userEnumValueName n ++ schemaName)
   typeName = interfaceName ++ schemaName
-  inputFuncName tn = userEnumValueName tn ++ "Input"
-  outputFuncName tn = userEnumValueName tn ++ "Output"
 
   chanName s = text "ch_" <> text s
   emitterName s = text "emitter_" <> text s
@@ -176,3 +177,17 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
         , text "ifte_ ok (emit e (constRef f)) (return ())"
         ]
     ]
+
+  towerMonadDependencies = stack
+    [ text "towerModule serializeModule"
+    , text "mapM_ towerArtifact serializeArtifacts"
+    , text "mapM_ towerModule typeModules"
+    , text "mapM_ towerDepends typeModules"
+    , empty
+    ]
+
+inputFuncName :: String -> String
+inputFuncName tn = userEnumValueName tn ++ "Input"
+
+outputFuncName :: String -> String
+outputFuncName tn = userEnumValueName tn ++ "Output"
