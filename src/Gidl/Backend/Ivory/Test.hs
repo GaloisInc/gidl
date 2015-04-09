@@ -5,7 +5,7 @@ module Gidl.Backend.Ivory.Test where
 import Data.Monoid
 import Gidl.Interface
 import Gidl.Schema
-import Gidl.Backend.Ivory.Interface
+import Gidl.Backend.Ivory.Schema
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 

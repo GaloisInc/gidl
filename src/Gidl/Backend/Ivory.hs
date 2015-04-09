@@ -13,7 +13,7 @@ import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Cabal
 import Gidl.Backend.Ivory.Types
-import Gidl.Backend.Ivory.Interface
+import Gidl.Backend.Ivory.Schema
 
 ivoryBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
 ivoryBackend te ie pkgname namespace_raw =
@@ -35,15 +35,15 @@ ivoryBackend te ie pkgname namespace_raw =
 
 ivorySources :: TypeEnv -> InterfaceEnv -> [String] -> [Artifact]
 ivorySources (TypeEnv te) (InterfaceEnv ie) namespace =
-  tmods ++ concat imods ++ [ typeUmbrella namespace userDefinedTypes
+  tmods ++ concat smods ++ [ typeUmbrella namespace userDefinedTypes
                            , unpackModule namespace
                            ]
   where
   userDefinedTypes = [ t | (_,t) <- te, isUserDefined t ]
   tmods = [ typeModule (namespace ++ ["Types"]) t
           | t <- userDefinedTypes ]
-  imods = [ [ interfaceModule (namespace ++ ["Interface"]) i (producerSchema i)
-            , interfaceModule (namespace ++ ["Interface"]) i (consumerSchema i) ]
+  smods = [ [ schemaModule (namespace ++ ["Interface"]) i (producerSchema i)
+            , schemaModule (namespace ++ ["Interface"]) i (consumerSchema i) ]
           | (_iname, i) <- ie ]
 
 dotwords :: String -> [String]

@@ -12,8 +12,8 @@ import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Cabal
 import Gidl.Backend.Ivory (dotwords, ivorySources)
-import Gidl.Backend.Ivory.Interface (ifModuleName)
-import Gidl.Backend.Tower.Interface
+import Gidl.Backend.Ivory.Schema (ifModuleName)
+import Gidl.Backend.Tower.Schema
 
 towerBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
 towerBackend te ie pkgname namespace_raw =
@@ -42,8 +42,8 @@ towerSources :: InterfaceEnv -> [String] -> [Artifact]
 towerSources (InterfaceEnv ie) namespace = towerInterfaces
   where
   towerInterfaces = concat
-    [ [ interfaceModule (namespace ++ ["Interface"]) i (producerSchema i)
-      , interfaceModule (namespace ++ ["Interface"]) i (consumerSchema i) ]
+    [ [ schemaModule (namespace ++ ["Interface"]) i (producerSchema i)
+      , schemaModule (namespace ++ ["Interface"]) i (consumerSchema i) ]
     | (_iname, i) <- ie ]
 
 makefile :: Artifact

@@ -28,11 +28,11 @@ library
                        Gidl.Backend.Haskell.Test,
                        Gidl.Backend.Haskell.Types,
                        Gidl.Backend.Ivory,
-                       Gidl.Backend.Ivory.Interface,
+                       Gidl.Backend.Ivory.Schema,
                        Gidl.Backend.Ivory.Test,
                        Gidl.Backend.Ivory.Types,
                        Gidl.Backend.Tower,
-                       Gidl.Backend.Tower.Interface
+                       Gidl.Backend.Tower.Schema
 
   other-modules:       Paths_gidl
 

@@ -1,5 +1,5 @@
 
-module Gidl.Backend.Tower.Interface where
+module Gidl.Backend.Tower.Schema where
 
 
 import Data.Monoid
@@ -9,12 +9,12 @@ import Gidl.Types
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
-import Gidl.Backend.Ivory.Interface (ifModuleName, parserName, senderName)
+import Gidl.Backend.Ivory.Schema (ifModuleName, parserName, senderName)
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
-interfaceModule :: [String] -> Interface -> Schema -> Artifact
-interfaceModule modulepath ir schema =
+schemaModule :: [String] -> Interface -> Schema -> Artifact
+schemaModule modulepath ir schema =
   artifactPath (intercalate "/" (modulepath ++ [ifModuleName ir])) $
   artifactText (schemaName ++ ".hs") $
   prettyLazyText 80 $
