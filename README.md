@@ -5,13 +5,23 @@ describing structured types.
 
 ## IDL format
 
-See example in tests/example.idl.
+See example in tests/example.idl. Currently, the format is not set in stone -
+revisions coming shortly.
 
-## Backend
+## Backends
 
-Gidl currently has a native Haskell backend. Ivory language backend coming soon.
+Gidl currently has backends for:
+  - Native Haskell
+  - [Ivory][] language
+  - [Tower][] wrapper over Ivory
 
-## Tests
+## Build and Test
+Use the `create-sandbox` target in the Makefile to create a local cabal
+sandbox and install all dependencies.
 
-Use the `test` target in the Makefile to generate and test a Haskell library
-for the IDL file.
+The default target builds the gidl library. You can then use `cabal run gidl --
+<OPTIONS>` to run the code generator. Use the `--help` option to get usage
+information.
+
+Use the `test` target in the Makefile to generate and test each backend
+implementation.
