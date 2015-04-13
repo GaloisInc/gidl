@@ -14,6 +14,7 @@ import Gidl.Backend.Cabal
 import Gidl.Backend.Ivory (dotwords, ivorySources)
 import Gidl.Backend.Ivory.Schema (ifModuleName)
 import Gidl.Backend.Tower.Schema
+import Gidl.Backend.Tower.Interface
 
 towerBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
 towerBackend te ie pkgname namespace_raw =
@@ -42,9 +43,12 @@ towerSources :: InterfaceEnv -> [String] -> [Artifact]
 towerSources (InterfaceEnv ie) namespace = towerInterfaces
   where
   towerInterfaces = concat
-    [ [ schemaModule (namespace ++ ["Interface"]) i (producerSchema i)
-      , schemaModule (namespace ++ ["Interface"]) i (consumerSchema i) ]
+    [ [ schemaModule    ifnamespace i (producerSchema i)
+      , schemaModule    ifnamespace i (consumerSchema i)
+      , interfaceModule ifnamespace i
+      ]
     | (_iname, i) <- ie ]
+  ifnamespace = namespace ++ ["Interface"]
 
 makefile :: Artifact
 makefile = artifactCabalFile P.getDataDir "support/tower/Makefile"

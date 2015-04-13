@@ -11,6 +11,8 @@ cabal-version:       >=1.10
 data-files: support/ivory/Unpack.hs.template,
             support/ivory/CodeGen.hs.template,
             support/ivory/Makefile,
+            support/tower/CodeGen.hs.template,
+            support/tower/default.conf,
             support/tower/Makefile
 
 library
@@ -32,7 +34,8 @@ library
                        Gidl.Backend.Ivory.Test,
                        Gidl.Backend.Ivory.Types,
                        Gidl.Backend.Tower,
-                       Gidl.Backend.Tower.Schema
+                       Gidl.Backend.Tower.Schema,
+                       Gidl.Backend.Tower.Interface
 
   other-modules:       Paths_gidl
 
