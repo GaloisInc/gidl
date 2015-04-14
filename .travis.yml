@@ -1,6 +1,4 @@
 language: haskell
-
-
 before_install:
   - sudo add-apt-repository -y ppa:terry.guo/gcc-arm-embedded
   - sudo apt-get update -qq
@@ -12,6 +10,7 @@ before_install:
   - git clone https://github.com/galoisinc/ivory-tower-stm32
   - export BSP_REPO=$PWD/ivory-tower-stm32
 install:
+  - cabal install cabal-install
   - cabal install alex
   - cabal install happy
 script:
