@@ -12,6 +12,7 @@ data-files: support/ivory/Unpack.hs.template,
             support/ivory/CodeGen.hs.template,
             support/ivory/Makefile,
             support/tower/CodeGen.hs.template,
+            support/tower/Attr.hs.template,
             support/tower/default.conf,
             support/tower/Makefile
 
