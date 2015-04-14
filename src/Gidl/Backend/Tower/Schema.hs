@@ -62,21 +62,20 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     [ text "-- Define" <+> text schemaName  <+> text "schema for"
         <+> text interfaceName <+> text "interface"
     , empty
-    , text "data" <+> constructor <+> text "c" <+> equals <+> constructor
+    , text "data" <+> constructor<+> equals <+> constructor
     , indent 2 $ encloseStack lbrace rbrace comma
         [ case t of
             PrimType VoidType -> accessorName n <+> colon <> colon
-                <+> text "c (Stored IBool)"
+                <+> text "ChanOutput (Stored IBool)"
             _ -> accessorName n <+> colon <> colon
-                    <+> text "c"
-                    <+> parens (text (typeIvoryType t))
+                <+> text "ChanOutput" <+> parens (text (typeIvoryType t))
         | (_, (Message n t)) <- schema
         ]
     , empty
     , text (inputFuncName typeName) <+> align
         (stack [ text ":: (ANat n)"
                , text "=> ChanOutput (Array n (Stored Uint8))"
-               , text "-> Tower e" <+> parens (constructor <+> text "ChanOutput")
+               , text "-> Tower e" <+> constructor
                ])
     , text (inputFuncName typeName) <+> text "frame_ch" <+> equals <+> text "do"
     , indent 2 $ stack
@@ -125,7 +124,7 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     , empty
     , text (outputFuncName typeName) <> align
         (stack [ text ":: (ANat n)"
-               , text "=>" <+> constructor <+> text "ChanOutput"
+               , text "=>" <+> constructor
                , text "-> Tower e (ChanOutput (Array n (Stored Uint8)))"
                ])
     , text (outputFuncName typeName) <+> text "a" <+> equals <+> text "do"
