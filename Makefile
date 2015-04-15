@@ -1,4 +1,5 @@
 
+SCARGOT_REPO ?= ../s-cargot
 IVORY_REPO ?= ../ivory
 
 default:
@@ -6,6 +7,7 @@ default:
 
 create-sandbox:
 	cabal sandbox init
+	cabal sandbox add-source $(SCARGOT_REPO)
 	cabal sandbox add-source $(IVORY_REPO)/ivory-artifact
 	cabal install --dependencies-only
 
