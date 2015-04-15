@@ -1,13 +1,13 @@
 -- vim: ft=haskell
 
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-module $module_prefix$Base where
+module $module_path$.Base where
 
-import System.Environment
-import System.Console.GetOpt
-import Snap.Http.Server (simpleHttpServe,defaultConfig)
-import Snap.Util.FileServe (serveDirectory)
+import           Snap.Core (Snap,route)
+import qualified Snap.Http.Server as HTTP
+import           Snap.Util.FileServe (serveDirectory)
 
 data Config = Config { cfgPort :: !Int
                        -- ^ The port to run on
@@ -26,11 +26,12 @@ defaultConfig  = Config { cfgPort = 8080, cfgStaticDir = Nothing }
 
 -- | Spawn a snap server, and run the given RPC action.
 runServer :: Config -> Snap () -> IO ()
-runServer Config { .. } serveRpc = simpleHttpServe snapConfig server
+runServer Config { .. } serveRpc =
+  do let snapCfg :: HTTP.Config Snap ()
+         snapCfg  = HTTP.setPort cfgPort HTTP.defaultConfig
+     HTTP.simpleHttpServe snapCfg body
+
   where
-  server =
-    do let snapCfg = setPort cfgPort defaultConfig
-       simpleHttpServe snapCfg body
 
   body =
     do serveRpc

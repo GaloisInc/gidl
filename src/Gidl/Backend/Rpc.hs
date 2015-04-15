@@ -57,7 +57,7 @@ rpcBaseModule ns =
   artifactPath (foldr (\ p rest -> p ++ "/" ++ rest) "Server" ns) $
   artifactCabalFileTemplate P.getDataDir "support/rpc/Base.hs.template" env
   where
-  env = [ ("module_prefix", concatMap (++ ".") ns) ]
+  env = [ ("module_path", foldr (\p rest -> p ++ "." ++ rest) "Server" ns) ]
 
 
 -- Utilities -------------------------------------------------------------------
