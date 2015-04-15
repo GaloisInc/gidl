@@ -6,6 +6,7 @@ import Data.Monoid
 import Data.List (intercalate)
 
 import Gidl.Interface
+import Gidl.Schema
 import Gidl.Backend.Ivory.Types
 import Gidl.Backend.Ivory.Schema (ifModuleName)
 import Ivory.Artifact
@@ -148,18 +149,28 @@ interfaceServer i =
   constructor postfix = text (ifModuleName i) <> text postfix
   fname =  text "tower" <> constructor "Server"
   typedef = fname <+> align (stack
-      [ text "::" <+> constructor "Consumer"
-      , text "->" <+> constructor "Attrs Attr"
+      [ guardEmptySchema (consumerSchema i)
+                         (text "::" <+> constructor "Consumer")
+                         (text ":: -- no consumer schema")
+      , guardEmptySchema (consumerSchema i) (text "->") (text "  ")
+            <+> constructor "Attrs Attr"
       , text "->" <+> constructor "Streams ChanOutput"
-      , text "->" <+> text "Tower e" <+> constructor "Producer"
+      , text "->" <+> text "Tower e"
+             <+> guardEmptySchema (producerSchema i)
+                                  (constructor "Producer")
+                                  (text "()")
       ])
-  decl = fname <+> constructor "Consumer{..}"
+  decl = fname <+> guardEmptySchema (consumerSchema i)
+                                    (constructor "Consumer{..}")
+                                    empty
                <+> constructor "Attrs{..}"
                <+> constructor "Streams{..}"
                <+> equals <+> text "do"
   body = stack [ methodBody (text (userEnumValueName n)) m
                | (n,m) <- interfaceMethods i ]
-  ret = text "return" <+> constructor "Producer{..}"
+  ret = text "return" <+> guardEmptySchema (producerSchema i)
+                                           (constructor "Producer{..}")
+                                           (text "()")
 
   methodBody n (StreamMethod _ _) =
     text "let" <+> n <> text "Producer" <+> equals <+> n
@@ -171,4 +182,9 @@ interfaceServer i =
   methodBody n (AttrMethod ReadWrite _) =
     n <> text "ValProducer" <+> text "<- readwritableAttrServer"
       <+> n <+> n <> text "GetConsumer" <+> n <> text "SetConsumer"
+
+
+guardEmptySchema :: Schema -> Doc -> Doc -> Doc
+guardEmptySchema (Schema _ []) _ d = d
+guardEmptySchema (Schema _ _) d _ = d
 
