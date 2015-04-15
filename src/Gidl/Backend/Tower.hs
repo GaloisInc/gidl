@@ -12,7 +12,8 @@ import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Cabal
 import Gidl.Backend.Ivory (dotwords, ivorySources)
-import Gidl.Backend.Ivory.Interface (ifModuleName)
+import Gidl.Backend.Ivory.Schema (ifModuleName)
+import Gidl.Backend.Tower.Schema
 import Gidl.Backend.Tower.Interface
 
 towerBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
@@ -25,7 +26,7 @@ towerBackend te ie pkgname namespace_raw =
   where
   namespace = dotwords namespace_raw
 
-  sources = isources ++ tsources
+  sources = isources ++ [ attrModule (namespace ++ ["Tower"]) ] ++ tsources
 
   tsources = towerSources ie (namespace ++ ["Tower"])
 
@@ -42,9 +43,12 @@ towerSources :: InterfaceEnv -> [String] -> [Artifact]
 towerSources (InterfaceEnv ie) namespace = towerInterfaces
   where
   towerInterfaces = concat
-    [ [ interfaceModule (namespace ++ ["Interface"]) i (producerSchema i)
-      , interfaceModule (namespace ++ ["Interface"]) i (consumerSchema i) ]
+    [ [ schemaModule    ifnamespace i (producerSchema i)
+      , schemaModule    ifnamespace i (consumerSchema i)
+      , interfaceModule ifnamespace i
+      ]
     | (_iname, i) <- ie ]
+  ifnamespace = namespace ++ ["Interface"]
 
 makefile :: Artifact
 makefile = artifactCabalFile P.getDataDir "support/tower/Makefile"
@@ -82,3 +86,12 @@ codegenTest (InterfaceEnv ie) modulepath =
       ++ " (snd c) >>= \\i -> "
       ++ (outputFuncName ((ifModuleName i) ++ schemaName))
       ++ " i >>= \\(_ :: ChanOutput (Array 80 (Stored Uint8))) -> return ()"
+
+
+attrModule :: [String] -> Artifact
+attrModule modulepath =
+  artifactPath (intercalate "/" modulepath) $
+  artifactCabalFileTemplate P.getDataDir fname
+    [("module_path", intercalate "." modulepath )]
+  where
+  fname = "support/tower/Attr.hs.template"

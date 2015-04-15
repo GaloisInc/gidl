@@ -3,191 +3,188 @@ module Gidl.Backend.Tower.Interface where
 
 
 import Data.Monoid
-import Data.List (intercalate, nub)
+import Data.List (intercalate)
 
-import Gidl.Types
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
-import Gidl.Backend.Ivory.Interface (ifModuleName, parserName, senderName)
+import Gidl.Backend.Ivory.Schema (ifModuleName)
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
-interfaceModule :: [String] -> Interface -> Schema -> Artifact
-interfaceModule modulepath ir schema =
-  artifactPath (intercalate "/" (modulepath ++ [ifModuleName ir])) $
-  artifactText (schemaName ++ ".hs") $
+interfaceModule :: [String] -> Interface -> Artifact
+interfaceModule modulepath i =
+  artifactPath (intercalate "/" modulepath) $
+  artifactText (ifModuleName i ++ ".hs") $
   prettyLazyText 80 $
   stack
     [ text "{-# LANGUAGE DataKinds #-}"
     , text "{-# LANGUAGE RankNTypes #-}"
     , text "{-# LANGUAGE ScopedTypeVariables #-}"
+    , text "{-# LANGUAGE KindSignatures #-}"
+    , text "{-# LANGUAGE RecordWildCards #-}"
     , text "{-# OPTIONS_GHC -fno-warn-unused-imports #-}"
+    , text "{-# OPTIONS_GHC -fno-warn-unused-matches #-}"
     , empty
     , text "module"
-      <+> im (ifModuleName ir) <> dot <> text schemaName
+      <+> im (ifModuleName i)
       <+> text "where"
     , empty
-    , stack $ typeimports ++ extraimports
+    , stack imports
     , empty
-    , schemaDoc (ifModuleName ir) schema
+    , attrsDataType i
+    , empty
+    , attrsTowerConstructor i
+    , empty
+    , attrsInitializer i
+    , empty
+    , streamsDataType i
+    , empty
+    , streamsTowerConstructor i
+    , empty
+    , interfaceServer i
     ]
   where
-  (Schema schemaName _) = schema
   rootpath = reverse . drop 2 . reverse
   modAt path = mconcat (punctuate dot (map text path))
   im mname = modAt (modulepath ++ [mname])
-  tm mname = modAt (rootpath modulepath ++ ["Ivory","Types", mname])
-  ivoryIFMod = modAt (rootpath modulepath
-                      ++ ["Ivory","Interface", ifModuleName ir, schemaName])
 
-  typeimports = map (importDecl tm)
-              $ nub
-              $ map importType
-              $ interfaceTypes ir
-
-  extraimports = [ text "import" <+> modAt (rootpath modulepath ++ ["Ivory", "Types"])
-                 , text "import qualified" <+> ivoryIFMod <+> text "as I"
-                 , text "import Ivory.Language"
-                 , text "import Ivory.Stdlib"
-                 , text "import Ivory.Tower"
-                 , text "import Ivory.Serialize"
-                 ]
-
-schemaDoc :: String -> Schema -> Doc
-schemaDoc interfaceName (Schema schemaName [])     =
-    text "-- Cannot define" <+> text schemaName  <+> text "schema for"
-        <+> text interfaceName <+> text "interface: schema is empty"
-schemaDoc interfaceName (Schema schemaName schema) = stack
-    [ text "-- Define" <+> text schemaName  <+> text "schema for"
-        <+> text interfaceName <+> text "interface"
-    , empty
-    , text "data" <+> constructor <+> text "c" <+> equals <+> constructor
-    , indent 2 $ encloseStack lbrace rbrace comma
-        [ case t of
-            PrimType VoidType -> accessorName n <+> colon <> colon
-                <+> text "c (Stored IBool)"
-            _ -> accessorName n <+> colon <> colon
-                    <+> text "c"
-                    <+> parens (text (typeIvoryType t))
-        | (_, (Message n t)) <- schema
-        ]
-    , empty
-    , text (inputFuncName typeName) <+> align
-        (stack [ text ":: (ANat n)"
-               , text "=> ChanOutput (Array n (Stored Uint8))"
-               , text "-> Tower e" <+> parens (constructor <+> text "ChanOutput")
-               ])
-    , text (inputFuncName typeName) <+> text "frame_ch" <+> equals <+> text "do"
-    , indent 2 $ stack
-        [ towerMonadDependencies
-        , stack [ chanName n <+> text "<- channel"
-                | (_, Message n _) <- schema ]
-        , empty
-        , text "monitor" <+> dquotes (text (outputFuncName typeName))
-            <+> text "$ do"
-        , indent 2 $ stack
-            [ text "handler frame_ch \"parse_frame\" $ do" 
-            , indent 2 $ stack
-                [ stack [ emitterName n <+> text "<- emitter"
-                           <+> parens (text "fst" <+> chanName n)
-                           <+> text "1"
-                        | (_, Message n _) <- schema
-                        ]
-                , text "callback $ \\f -> do"
-                , indent 2 $ stack
-                    [ text "offs <- local izero"
-                    , text "_ <- I." <> text (parserName typeName)
-                        <+> text "f offs $ I." <> constructor
-                    , indent 2 $ encloseStack lbrace rbrace comma
-                        [ case t of
-                            PrimType VoidType ->
-                                 text "I." <> accessorName n <+> equals
-                                  <+> text "emitV" <+> emitterName n
-                                  <+> text "true >> return true"
-                            _ -> text "I." <> accessorName n <+> equals
-                                  <+> text "\\v -> emit" <+> emitterName n
-                                  <+> text "v >> return true"
-                        | (_, Message n t) <- schema
-                        ]
-                    , text "return ()"
-                    ]
-                ]
-
-            ]
-        , empty
-        , text "return" <+> constructor <+> encloseStack lbrace rbrace comma
-            [ accessorName n <+> equals
-              <+> parens (text "snd" <+> chanName n)
-            | (_, Message n _) <- schema
-            ]
-        ]
-    , empty
-    , text (outputFuncName typeName) <> align
-        (stack [ text ":: (ANat n)"
-               , text "=>" <+> constructor <+> text "ChanOutput"
-               , text "-> Tower e (ChanOutput (Array n (Stored Uint8)))"
-               ])
-    , text (outputFuncName typeName) <+> text "a" <+> equals <+> text "do"
-    , indent 2 $ stack
-        [ towerMonadDependencies
-        , text "frame_ch <- channel"
-        , text "monitor" <+> dquotes (text (outputFuncName typeName))
-            <+> text "$ do"
-        , indent 2 $ stack
-            [ text "handler" <+> parens (accessorName n <+> text "a")
-                <+> dquotes (accessorName n) <+> text "$ do"
-                </> indent 2 (parseEmitBody n t)
-                </> empty
-            | (_, Message n t) <- schema
-            ]
-        , text "return (snd frame_ch)"
-        ]
+  imports =
+    [ text "import" <+> modAt (rootpath modulepath ++ ["Tower", "Attr"])
+    , text "import" <+> im (ifModuleName i) <> dot <> text "Producer"
+    , text "import" <+> im (ifModuleName i) <> dot <> text "Consumer"
+    , text "import Ivory.Language"
+    , text "import Ivory.Tower"
     ]
+
+
+attrsDataType :: Interface -> Doc
+attrsDataType i = text "data" <+> constructor <+> text "(p :: Area * -> *) ="
+               </> indent 2 constructor
+               </> indent 4 body
   where
-  constructor = text typeName
-  accessorName n = text (userEnumValueName n ++ schemaName)
-  typeName = interfaceName ++ schemaName
-
-  chanName s = text "ch_" <> text s
-  emitterName s = text "emitter_" <> text s
-
-  parseEmitBody n (PrimType VoidType) = stack
-    [ text "e <- emitter (fst frame_ch) 1"
-    , text "callback $ \\_ -> do"
-    , indent 2 $ stack
-        [ text "f <- local izero"
-        , text "o <- local izero"
-        , text "ok <-" <+> text "I." <> accessorName n
-            <+> parens (text "I." <> text (senderName typeName)
-                        <+> text "f o")
-        , text "ifte_ ok (emit e (constRef f)) (return ())"
-        ]
-    ]
-  parseEmitBody n _ = stack
-    [ text "e <- emitter (fst frame_ch) 1"
-    , text "callback $ \\w -> do"
-    , indent 2 $ stack
-        [ text "f <- local izero"
-        , text "o <- local izero"
-        , text "ok <-" <+> text "I." <> accessorName n
-            <+> parens (text "I." <> text (senderName typeName)
-                        <+> text "f o")
-            <+> text "w"
-        , text "ifte_ ok (emit e (constRef f)) (return ())"
-        ]
+  constructor = text (ifModuleName i) <> text "Attrs"
+  body = encloseStack lbrace rbrace comma
+    [ text n <+> colon <> colon <+> text "p"
+                 <+> parens (text (typeIvoryType t))
+    | (aname, AttrMethod _ t)  <- interfaceMethods i
+    , let n = userEnumValueName aname
     ]
 
-  towerMonadDependencies = stack
-    [ text "towerModule serializeModule"
-    , text "mapM_ towerArtifact serializeArtifacts"
-    , text "mapM_ towerModule typeModules"
-    , text "mapM_ towerDepends typeModules"
-    , empty
+attrsTowerConstructor :: Interface -> Doc
+attrsTowerConstructor i = typesig </> decl </> indent 2 body </> indent 2 ret
+  where
+  constructor = text (ifModuleName i) <> text "Attrs"
+  typesig = text "tower" <> constructor <+> colon <> colon
+    <+> constructor <+> text "Init"
+    <+> text "->"
+    <+> text "Tower e" <+> parens (constructor <+> text "Attr")
+  decl = text "tower" <> constructor <+> text "ivals = do"
+  body = stack
+    [ text n <> text "_p <- towerAttr"
+       <+> dquotes (text aname)
+       <+> parens (text n <+> text "ivals")
+    | (aname, AttrMethod _ _)  <- interfaceMethods i
+    , let n = userEnumValueName aname
+    ]
+  ret = text "return" <+> constructor <+> encloseStack lbrace rbrace comma
+    [ text n <+> equals <+> text n <> text "_p"
+    | (aname, AttrMethod _ _)  <- interfaceMethods i
+    , let n = userEnumValueName aname
     ]
 
-inputFuncName :: String -> String
-inputFuncName tn = userEnumValueName tn ++ "Input"
+attrsInitializer :: Interface -> Doc
+attrsInitializer i = typesig </> decl </> indent 2 body
+  where
+  constructor = text (ifModuleName i) <> text "Attrs"
+  typesig = text "init" <> constructor <+> colon <> colon
+            <+> constructor <+> text "Init"
+  decl = text "init" <> constructor <+> equals <+> constructor
+  body = encloseStack lbrace rbrace comma
+    [ text n <+> equals <+> text "izero"
+    | (aname, AttrMethod _ _)  <- interfaceMethods i
+    , let n = userEnumValueName aname
+    ]
 
-outputFuncName :: String -> String
-outputFuncName tn = userEnumValueName tn ++ "Output"
+streamsDataType :: Interface -> Doc
+streamsDataType i = text "data" <+> constructor <+> text "(p :: Area * -> *) ="
+               </> indent 2 constructor
+               </> indent 4 body
+  where
+  constructor = text (ifModuleName i) <> text "Streams"
+  body = encloseStack lbrace rbrace comma
+    [ text n <+> colon <> colon <+> text "p"
+                 <+> parens (text (typeIvoryType t))
+    | (aname, StreamMethod _ t)  <- interfaceMethods i
+    , let n = userEnumValueName aname
+    ]
+
+streamsTowerConstructor :: Interface -> Doc
+streamsTowerConstructor i = typesig </> decl </> indent 2 body </> indent 2 ret
+  where
+  constructor = text (ifModuleName i) <> text "Streams"
+  typesig = text "tower" <> constructor <+> colon <> colon
+    <+> text "Tower e"
+    <+> parens (constructor <+> text "ChanInput" <> comma
+                <+> constructor <+> text "ChanOutput")
+  decl = text "tower" <> constructor <+> text "= do"
+  body = stack
+    [ text n <> text "_c <- channel"
+    | (aname, StreamMethod _ _)  <- interfaceMethods i
+    , let n = userEnumValueName aname
+    ]
+  ret = text "return" <+> encloseStack lparen rparen comma
+    [ mkstream "fst", mkstream "snd"]
+  mkstream acc = constructor </> indent 2 (encloseStack lbrace rbrace comma
+    [ text n <+> equals <+> text acc <+> text n <> text "_c"
+    | (aname, StreamMethod _ _)  <- interfaceMethods i
+    , let n = userEnumValueName aname
+    ])
+
+
+interfaceServer :: Interface -> Doc
+interfaceServer i =
+  stack [typedef, decl, indent 2 body, indent 2 ret]
+  where
+  constructor postfix = text (ifModuleName i) <> text postfix
+  fname =  text "tower" <> constructor "Server"
+  typedef = fname <+> align (stack
+      [ guardEmptySchema (consumerSchema i)
+                         (text "::" <+> constructor "Consumer")
+                         (text ":: -- no consumer schema")
+      , guardEmptySchema (consumerSchema i) (text "->") (text "  ")
+            <+> constructor "Attrs Attr"
+      , text "->" <+> constructor "Streams ChanOutput"
+      , text "->" <+> text "Tower e"
+             <+> guardEmptySchema (producerSchema i)
+                                  (constructor "Producer")
+                                  (text "()")
+      ])
+  decl = fname <+> guardEmptySchema (consumerSchema i)
+                                    (constructor "Consumer{..}")
+                                    empty
+               <+> constructor "Attrs{..}"
+               <+> constructor "Streams{..}"
+               <+> equals <+> text "do"
+  body = stack [ methodBody (text (userEnumValueName n)) m
+               | (n,m) <- interfaceMethods i ]
+  ret = text "return" <+> guardEmptySchema (producerSchema i)
+                                           (constructor "Producer{..}")
+                                           (text "()")
+
+  methodBody n (StreamMethod _ _) =
+    text "let" <+> n <> text "Producer" <+> equals <+> n
+  methodBody n (AttrMethod Read _) =
+    n <> text "ValProducer" <+> text "<- readableAttrServer"
+      <+> n <+> n <> text "GetConsumer"
+  methodBody n (AttrMethod Write _) =
+    text "writableAttrServer" <+> n <+> n <> text "SetConsumer"
+  methodBody n (AttrMethod ReadWrite _) =
+    n <> text "ValProducer" <+> text "<- readwritableAttrServer"
+      <+> n <+> n <> text "GetConsumer" <+> n <> text "SetConsumer"
+
+
+guardEmptySchema :: Schema -> Doc -> Doc -> Doc
+guardEmptySchema (Schema _ []) _ d = d
+guardEmptySchema (Schema _ _) d _ = d
+
