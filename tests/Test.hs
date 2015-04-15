@@ -24,7 +24,7 @@ test :: FilePath -> IO ()
 test f = do
   c <- readFile f
   case parseDecls c of
-    Left e -> print e
+    Left e -> putStrLn e
     Right (te@(TypeEnv te'), ie@(InterfaceEnv ie')) -> do
       {-
       forM_ te' $ \(tn, t) -> do
