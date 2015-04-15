@@ -13,7 +13,9 @@ data-files: support/ivory/Unpack.hs.template,
             support/ivory/Makefile,
             support/tower/CodeGen.hs.template,
             support/tower/default.conf,
-            support/tower/Makefile
+            support/tower/Makefile,
+            support/rpc/Base.hs.template,
+            support/rpc/Makefile
 
 library
   exposed-modules:     Gidl,
@@ -33,6 +35,7 @@ library
                        Gidl.Backend.Ivory.Schema,
                        Gidl.Backend.Ivory.Test,
                        Gidl.Backend.Ivory.Types,
+                       Gidl.Backend.Rpc,
                        Gidl.Backend.Tower,
                        Gidl.Backend.Tower.Schema,
                        Gidl.Backend.Tower.Interface

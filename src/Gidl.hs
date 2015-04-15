@@ -15,6 +15,7 @@ import Ivory.Artifact
 import Gidl.Parse
 import Gidl.Backend.Haskell
 import Gidl.Backend.Ivory
+import Gidl.Backend.Rpc (rpcBackend)
 import Gidl.Backend.Tower
 
 data OptParser opt = OptParser [String] (opt -> opt)
@@ -40,6 +41,7 @@ data Backend
   = HaskellBackend
   | IvoryBackend
   | TowerBackend
+  | RpcBackend
   deriving (Eq, Show)
 
 data Opts = Opts
@@ -68,6 +70,7 @@ setBackend b = case map toUpper b of
   "HASKELL" -> success (\o -> o { backend = HaskellBackend })
   "IVORY"   -> success (\o -> o { backend = IvoryBackend })
   "TOWER"   -> success (\o -> o { backend = TowerBackend })
+  "RPC"     -> success (\o -> o { backend = RpcBackend })
   _         -> invalid ("\"" ++ b ++ "\" is not a valid backend.\n"
                           ++ "Supported backends: haskell, ivory, tower")
 
@@ -138,6 +141,8 @@ run = do
           ivoryBackend te ie (packagename opts) (namespace opts)
         TowerBackend -> artifactBackend opts $
           towerBackend te ie (packagename opts) (namespace opts)
+        RpcBackend -> artifactBackend opts $
+          rpcBackend te ie (packagename opts) (namespace opts)
 
   where
   artifactBackend :: Opts -> [Artifact] -> IO ()

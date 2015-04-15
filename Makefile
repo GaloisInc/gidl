@@ -54,6 +54,21 @@ tower-backend-test:
 tower-backend-test-clean:
 	-rm -rf tests/gidl-tower-backend-test
 
+rpc-backend-test:
+	cabal copy
+	cabal run gidl -- -b rpc \
+		--debug \
+		-i tests/example.idl \
+		-o tests/gidl-rpc-backend-test \
+		-p gidl-rpc-backend-test \
+		-n Gidl.Test
+	make -C tests/gidl-rpc-backend-test create-sandbox
+	make -C tests/gidl-rpc-backend-test
+	make -C tests/gidl-rpc-backend-test test
+
+rpc-backend-test-clean:
+	-rm -rf tests/gidl-ivory-backend-test
+
 
 clean: ivory-backend-test-clean
 clean: tower-backend-test-clean

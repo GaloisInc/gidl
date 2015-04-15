@@ -1,0 +1,40 @@
+-- vim: ft=haskell
+
+{-# LANGUAGE RecordWildCards #-}
+
+module $module_prefix$Base where
+
+import System.Environment
+import System.Console.GetOpt
+import Snap.Http.Server (simpleHttpServe,defaultConfig)
+import Snap.Util.FileServe (serveDirectory)
+
+data Config = Config { cfgPort :: !Int
+                       -- ^ The port to run on
+
+                     , cfgStaticDir :: Maybe FilePath
+                       -- ^ Content to be served off of the root, relative to
+                       -- the directory that the server was started in
+
+                     } deriving (Show)
+
+-- | A default @Config@ value that will produce a server that runs on port 8080,
+-- and serves no static content.
+defaultConfig :: Config
+defaultConfig  = Config { cfgPort = 8080, cfgStaticDir = Nothing }
+
+
+-- | Spawn a snap server, and run the given RPC action.
+runServer :: Config -> Snap () -> IO ()
+runServer Config { .. } serveRpc = simpleHttpServe snapConfig server
+  where
+  server =
+    do let snapCfg = setPort cfgPort defaultConfig
+       simpleHttpServe snapCfg body
+
+  body =
+    do serveRpc
+
+       case cfgStaticDir of
+         Just path -> route [ ("", serveDirectory path) ]
+         Nothing   -> return ()
