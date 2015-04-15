@@ -5,9 +5,7 @@ module Gidl.Backend.Tower.Interface where
 import Data.Monoid
 import Data.List (intercalate)
 
-import Gidl.Types
 import Gidl.Interface
-import Gidl.Schema
 import Gidl.Backend.Ivory.Types
 import Gidl.Backend.Ivory.Schema (ifModuleName)
 import Ivory.Artifact
@@ -42,12 +40,13 @@ interfaceModule modulepath i =
     , streamsDataType i
     , empty
     , streamsTowerConstructor i
+    , empty
+    , interfaceServer i
     ]
   where
   rootpath = reverse . drop 2 . reverse
   modAt path = mconcat (punctuate dot (map text path))
   im mname = modAt (modulepath ++ [mname])
-  tm mname = modAt (rootpath modulepath ++ ["Ivory","Types", mname])
 
   imports =
     [ text "import" <+> modAt (rootpath modulepath ++ ["Tower", "Attr"])
@@ -84,12 +83,12 @@ attrsTowerConstructor i = typesig </> decl </> indent 2 body </> indent 2 ret
     [ text n <> text "_p <- towerAttr"
        <+> dquotes (text aname)
        <+> parens (text n <+> text "ivals")
-    | (aname, AttrMethod _ t)  <- interfaceMethods i
+    | (aname, AttrMethod _ _)  <- interfaceMethods i
     , let n = userEnumValueName aname
     ]
   ret = text "return" <+> constructor <+> encloseStack lbrace rbrace comma
     [ text n <+> equals <+> text n <> text "_p"
-    | (aname, AttrMethod _ t)  <- interfaceMethods i
+    | (aname, AttrMethod _ _)  <- interfaceMethods i
     , let n = userEnumValueName aname
     ]
 
@@ -102,7 +101,7 @@ attrsInitializer i = typesig </> decl </> indent 2 body
   decl = text "init" <> constructor <+> equals <+> constructor
   body = encloseStack lbrace rbrace comma
     [ text n <+> equals <+> text "izero"
-    | (aname, AttrMethod _ t)  <- interfaceMethods i
+    | (aname, AttrMethod _ _)  <- interfaceMethods i
     , let n = userEnumValueName aname
     ]
 
@@ -130,13 +129,46 @@ streamsTowerConstructor i = typesig </> decl </> indent 2 body </> indent 2 ret
   decl = text "tower" <> constructor <+> text "= do"
   body = stack
     [ text n <> text "_c <- channel"
-    | (aname, StreamMethod _ t)  <- interfaceMethods i
+    | (aname, StreamMethod _ _)  <- interfaceMethods i
     , let n = userEnumValueName aname
     ]
   ret = text "return" <+> encloseStack lparen rparen comma
     [ mkstream "fst", mkstream "snd"]
   mkstream acc = constructor </> indent 2 (encloseStack lbrace rbrace comma
     [ text n <+> equals <+> text acc <+> text n <> text "_c"
-    | (aname, StreamMethod _ t)  <- interfaceMethods i
+    | (aname, StreamMethod _ _)  <- interfaceMethods i
     , let n = userEnumValueName aname
     ])
+
+
+interfaceServer :: Interface -> Doc
+interfaceServer i =
+  stack [typedef, decl, indent 2 body, indent 2 ret]
+  where
+  constructor postfix = text (ifModuleName i) <> text postfix
+  fname =  text "tower" <> constructor "Server"
+  typedef = fname <+> align (stack
+      [ text "::" <+> constructor "Consumer"
+      , text "->" <+> constructor "Attrs Attr"
+      , text "->" <+> constructor "Streams ChanOutput"
+      , text "->" <+> text "Tower e" <+> constructor "Producer"
+      ])
+  decl = fname <+> constructor "Consumer{..}"
+               <+> constructor "Attrs{..}"
+               <+> constructor "Streams{..}"
+               <+> equals <+> text "do"
+  body = stack [ methodBody (text (userEnumValueName n)) m
+               | (n,m) <- interfaceMethods i ]
+  ret = text "return" <+> constructor "Producer{..}"
+
+  methodBody n (StreamMethod _ _) =
+    text "let" <+> n <> text "Producer" <+> equals <+> n
+  methodBody n (AttrMethod Read _) =
+    n <> text "ValProducer" <+> text "<- readableAttrServer"
+      <+> n <+> n <> text "GetConsumer"
+  methodBody n (AttrMethod Write _) =
+    text "writableAttrServer" <+> n <+> n <> text "SetConsumer"
+  methodBody n (AttrMethod ReadWrite _) =
+    n <> text "ValProducer" <+> text "<- readwritableAttrServer"
+      <+> n <+> n <> text "GetConsumer" <+> n <> text "SetConsumer"
+
