@@ -4,8 +4,8 @@
 module Gidl.Parse (parseDecls) where
 
 import           Control.Applicative ((<$>), (<*>))
-import           Control.Monad ((>=>), guard)
-import           Data.List (nub, partition)
+import           Control.Monad ((>=>))
+import           Data.List (partition, group, intercalate)
 import           Data.SCargot.Comments (withHaskellComments)
 import           Data.SCargot.General ( SExprSpec
                                       , convertSpec
@@ -35,23 +35,31 @@ data MethodDecl
   | StreamDecl Integer Identifier
     deriving (Eq, Show)
 
-check :: Bool -> String -> Either String ()
-check True _ = return ()
-check _ msg  = throw msg
+unlessEmpty :: [a] -> (a -> String) -> Either String ()
+unlessEmpty [] _ = return ()
+unlessEmpty as msg  = throw (intercalate ";\n" (map msg as))
+
+duplicated :: (Eq a) => [a] -> [a]
+duplicated as = map (\a -> a !! 0) $ filter (\a -> length a > 1) $ group as
 
 -- Here's a function to convert those decls.
 toEnv :: [Decl] -> Either String (TypeEnv, InterfaceEnv)
 toEnv decls = do
-  check (unique typeNames) "duplicate type names"
-  check (unique interfaceNames) "duplicate interface names"
-  typs <- mapM getTypePair typeNames
+  unlessEmpty (duplicated typeNames)
+      (\n -> "Type named '" ++ n ++ "' declared multiple times")
+  unlessEmpty (filter (\t -> elem t (map fst builtins)) typeNames)
+      (\n -> "Builtin type named '" ++ n ++ "' cannot be redeclared")
+  unlessEmpty (duplicated interfaceNames)
+      (\n -> "Interface named '" ++ n ++ "' declared multiple times")
+
+  typs <- mapM (getTypePair . getName) typDs
   ifcs <- mapM getIfacePair interfaceNames
   return (TypeEnv typs, InterfaceEnv ifcs)
   where (typDs, ifcDs) = partition isTypeDecl decls
 
         builtins = let TypeEnv bs = baseTypeEnv in bs
 
-        typeNames = map fst builtins ++ map getName typDs
+        typeNames = map getName typDs
         interfaceNames = map getName ifcDs
 
         typMap = [(getName d, toType d) | d <- typDs] ++
@@ -83,7 +91,12 @@ toEnv decls = do
           t' <- getPrimType t
           return (n, PrimType (Newtype n t'))
         toType (EnumDecl (n, s) ts) = do
-          guard (unique (map fst ts)) /?/ "baz"
+          unlessEmpty (duplicated (map fst ts))
+              (\i -> "Enum identifier '" ++ i
+                  ++ "' repeated in declaration of 'Enum " ++ n ++ "'")
+          unlessEmpty (duplicated (map snd ts))
+              (\i -> "Enum value '" ++ (show i)
+                  ++ "' repeated in declaration of 'Enum " ++ n ++ "'")
           return (n, PrimType (EnumType n s ts))
         toType (StructDecl n ss) = do
           ps <- mapM (getPrimType . snd) ss
@@ -110,9 +123,6 @@ toEnv decls = do
 
         isTypeDecl InterfaceDecl {} = False
         isTypeDecl _                = True
-
-        unique l = nub l == l
-
 
 parseDecls :: String -> Either String (TypeEnv, InterfaceEnv)
 parseDecls = return . pack >=> decode gidlSpec >=> toEnv
