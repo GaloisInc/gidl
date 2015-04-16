@@ -17,6 +17,7 @@ test: tower-backend-test
 
 haskell-backend-test:
 	cabal run gidl -- -b haskell \
+		--debug \
 		-i tests/example.idl \
 		-o tests/gidl-haskell-backend-test \
 		-p gidl-haskell-backend-test \
