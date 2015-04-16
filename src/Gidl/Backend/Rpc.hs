@@ -8,7 +8,7 @@ import Gidl.Backend.Cabal
            (cabalFileArtifact,CabalFile(..),defaultCabalFile,filePathToPackage)
 import Gidl.Backend.Haskell.Interface (interfaceModule,ifModuleName)
 import Gidl.Backend.Haskell.Types (typeModule,isUserDefined,typeModuleName)
-import Gidl.Interface (Interface,InterfaceEnv(..))
+import Gidl.Interface (Interface(..),InterfaceEnv(..),MethodName,Method(..))
 import Gidl.Types (Type,TypeEnv(..))
 
 import Data.Char (isSpace)
@@ -19,7 +19,8 @@ import Ivory.Artifact
 import Ivory.Artifact.Template (artifactCabalFileTemplate)
 import Text.PrettyPrint.Mainland
            (Doc,prettyLazyText,text,empty,(<+>),(</>),(<>),char,line,parens
-           ,punctuate,stack,sep,tuple,dot,spread,cat)
+           ,punctuate,stack,sep,tuple,dot,spread,cat,string,indent,hang,nest
+           ,(<+/>),align,comma)
 
 
 -- External Interface ----------------------------------------------------------
@@ -54,10 +55,10 @@ rpcBackend typeEnv@(TypeEnv te) ifaceEnv@(InterfaceEnv ie) pkgName nsStr =
 
 rpcBaseModule :: [String] -> Artifact
 rpcBaseModule ns =
-  artifactPath (foldr (\ p rest -> p ++ "/" ++ rest) "Server" ns) $
+  artifactPath (foldr (\ p rest -> p ++ "/" ++ rest) "Rpc" ns) $
   artifactCabalFileTemplate P.getDataDir "support/rpc/Base.hs.template" env
   where
-  env = [ ("module_path", foldr (\p rest -> p ++ "." ++ rest) "Server" ns) ]
+  env = [ ("module_path", foldr (\p rest -> p ++ "." ++ rest) "Rpc" ns) ]
 
 
 -- Utilities -------------------------------------------------------------------
@@ -76,11 +77,15 @@ strToNs str =
   trim = takeWhile (not . isSpace)
 
 
+allMethods :: Interface -> [(MethodName,Method)]
+allMethods (Interface _ ps ms) = concatMap allMethods ps ++ ms
+
+
 -- Server Generation -----------------------------------------------------------
 
 rpcModule :: TypeEnv -> [String] -> Interface -> Artifact
 rpcModule typeEnv ns iface =
-  artifactPath (foldr (\ p rest -> p ++ "/" ++ rest) "Server" ns) $
+  artifactPath (foldr (\ p rest -> p ++ "/" ++ rest) "Rpc" ns) $
   artifactText (ifaceMod ++ ".hs") $
   prettyLazyText 80 $
   genServer typeEnv ns iface ifaceMod
@@ -90,11 +95,13 @@ rpcModule typeEnv ns iface =
 
 genServer :: TypeEnv -> [String] -> Interface -> String -> Doc
 genServer typeEnv ns iface ifaceMod =
-  stack [ moduleHeader     ns ifaceMod
+  stack [ text "{-# LANGUAGE OverloadedStrings #-}"
+        , moduleHeader     ns ifaceMod
+        , line
         , importTypes      ns typeEnv
         , importInterface  ns ifaceMod
         , line
-        , ppImport False (ppModName (ns ++ ["Server","Base"])) Nothing
+        , text "import" <+> (ppModName (ns ++ ["Rpc","Base"]))
         , line
         , webServerImports
         , line
@@ -106,7 +113,7 @@ genServer typeEnv ns iface ifaceMod =
 moduleHeader :: [String] -> String -> Doc
 moduleHeader ns m =
   spread [ text "module"
-         , ppHaskellModule (ns ++ ["Server"]) m
+         , dots (map text (ns ++ ["Rpc", m]))
          , tuple [ text "rpcServer", text "Config(..)" ]
          , text "where"
          ]
@@ -119,20 +126,21 @@ importTypes ns (TypeEnv ts) = foldr importType empty ts
   prefix = dots (map text (ns ++ ["Types"]))
 
   importType (_,t) rest =
-    stack [ ppImport False (prefix *. text (typeModuleName t)) Nothing
-          , rest
-          ]
+    (text "import" <+> (prefix *. text (typeModuleName t))) </> rest
 
 
 importInterface :: [String] -> String -> Doc
 importInterface ns ifaceName =
-  ppImport False (dots (map text (ns ++ ["Interface", ifaceName]))) Nothing
+  text "import" <+> (dots (map text (ns ++ ["Interface", ifaceName])))
 
 
 webServerImports :: Doc
 webServerImports  =
-  stack [ ppImport False (ppModName ["Snap","Http","Server"]) Nothing
-        , ppImport True  (ppModName ["Data","ByteString"])    Nothing
+  stack [ text "import"           <+> (ppModName ["Snap","Core"])
+        , text "import qualified" <+> (ppModName ["Data","ByteString"])
+                                  <+> text "as S"
+        , text "import"           <+> (ppModName ["Control","Concurrent"])
+        , text "import"           <+> (ppModName ["Control","Concurrent","STM"])
         ]
 
 
@@ -143,19 +151,50 @@ runServer typeEnv iface = runServerSig </> runServerDef typeEnv iface
 runServerSig :: Doc
 runServerSig  =
   text "rpcServer" <+> text "::"
-                   <+> arrow [ chan, chan, text "Config", text "IO ()" ]
+                   <+> hang 2 (arrow [ chan, chan, text "Config", text "IO ()" ])
   where
   chan = text "TChan" <+> text "S.ByteString"
 
 
 -- | Generate a definition for the server.
 runServerDef :: TypeEnv -> Interface -> Doc
-runServerDef typeEnv iface = text "rpcServer" <+> body
+runServerDef typeEnv iface = hang 2 (text "rpcServer" <+> body)
   where
   body = arg "input"  $ \ input  ->
          arg "output" $ \ output ->
          arg "cfg"    $ \ cfg    ->
-           char '=' <+> empty
+           char '=' </>
+           nest 2 (text "do" <+> align (stack (stmts cfg)))
+             </> text "where"
+             </> routesDef
+             </> managerDef input output
+
+  stmts cfg = [ text "_ <- forkIO manager"
+              , text "runServer" <+> cfg <+> text "routes"
+              ]
+
+  routesDef = nest 3 $
+    nest 2 (text "routes" <+> char '=' <+/> align (routes typeEnv iface))
+
+  managerDef input output =
+    nest 2 (text "manager" <+> char '=' <+/> align (text "..."))
+
+
+
+
+-- | Define one route for each interface member
+routes :: TypeEnv -> Interface -> Doc
+routes typeEnv iface =
+  text "route" <+> methods
+
+  where
+
+  methods =
+    align (char '[' <> stack (punctuate comma (map mkRoute (allMethods iface)))
+                    <> char ']')
+
+  mkRoute (name,method) =
+    tuple [ text (show name), text "writeBS \"foo\"" ]
 
 
 -- Pretty-printing Helpers -----------------------------------------------------
