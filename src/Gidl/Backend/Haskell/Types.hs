@@ -10,28 +10,33 @@ import Text.PrettyPrint.Mainland
 
 -- invariant: only make a typeModule from a StructType, NewtypeType, or EnumType
 -- i.e. when isUserDefined is true.
-typeModule :: [String] -> Type -> Artifact
-typeModule modulepath t =
+typeModule :: Bool -> [String] -> Type -> Artifact
+typeModule useAeson modulepath t =
   artifactPath (intercalate "/" modulepath) $
   artifactText ((typeModuleName t) ++ ".hs") $
   prettyLazyText 80 $
-  stack
+  stack $
     [ text "{-# LANGUAGE RecordWildCards #-}"
     , text "{-# LANGUAGE DeriveDataTypeable #-}"
+    , text "{-# LANGUAGE DeriveGeneric #-}"
     , empty
     , text "module"
       <+> tm (typeModuleName t)
       <+> text "where"
     , empty
     , stack (imports ++
+              [ text "import Data.Aeson (ToJSON,FromJSON)" | useAeson ] ++
               [ text "import Data.Serialize"
               , text "import Data.Typeable"
               , text "import Data.Data"
+              , text "import GHC.Generics (Generic)"
               , text "import qualified Test.QuickCheck as Q"
               ])
     , empty
     , typeDecl t
-    ]
+    ] ++
+    [ toJSONInstance   (typeModuleName t) | useAeson ] ++
+    [ fromJSONInstance (typeModuleName t) | useAeson ]
   where
   imports = map (importDecl tm)
           $ nub
@@ -93,6 +98,18 @@ arbitraryInstance tname = stack
       ]
   ]
 
+-- | Produce a ToJSON instance.
+--
+-- NOTE: this instance relies on a GHC that supports Generics.
+toJSONInstance :: TypeName -> Doc
+toJSONInstance tname = nest 2 (text "instance ToJSON" <+> text tname)
+
+-- | Produce a FromJSON instance.
+--
+-- NOTE: this instance relies on a GHC that supports Generics.
+fromJSONInstance :: TypeName -> Doc
+fromJSONInstance tname = nest 2 (text "instance FromJSON" <+> text tname)
+
 typeDecl :: Type -> Doc
 typeDecl t@(StructType _ ss) = stack
   [ text "data" <+> text tname <+> equals
@@ -127,14 +144,14 @@ typeDecl t@(StructType _ ss) = stack
   ]
   where
   tname = typeModuleName t
-  deriv = typeDeriving ["Eq", "Show", "Data", "Typeable"]
+  deriv = typeDeriving ["Eq", "Show", "Data", "Typeable", "Generic"]
 
 typeDecl t@(PrimType (Newtype _ n)) = stack
   [ text "newtype" <+> text tname <+> equals
   , indent 2 $ text tname <+> align
         (lbrace <+> text ("un" ++ tname) <+> text "::" <+>
          text (typeHaskellType (PrimType n)) </>
-         rbrace <+> typeDeriving ["Eq", "Show", "Data", "Typeable"])
+         rbrace <+> typeDeriving ["Eq", "Show", "Data", "Typeable", "Generic"])
   , empty
   , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
   , text ("put" ++ tname) <+> parens (text tname <+> text "a") <+> equals
@@ -200,7 +217,7 @@ typeDecl t@(PrimType (EnumType _ s es)) = stack
   , arbitraryInstance tname
   ]
   where
-  deriv = typeDeriving ["Eq", "Show", "Ord", "Data", "Typeable"]
+  deriv = typeDeriving ["Eq", "Show", "Ord", "Data", "Typeable", "Generic"]
   tname = typeModuleName t
 
 typeDecl t = error ("typeDecl: cannot create Haskell decl for type " ++ show t)

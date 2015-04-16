@@ -21,11 +21,11 @@ haskellBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
   [ artifactPath "src" m | m <- sourceMods
   ]
   where
-  tmods = [ typeModule (namespace ++ ["Types"]) t
+  tmods = [ typeModule False (namespace ++ ["Types"]) t
           | (_tn, t) <- te
           , isUserDefined t
           ]
-  imods = [ interfaceModule (namespace ++ ["Interface"]) i
+  imods = [ interfaceModule False (namespace ++ ["Interface"]) i
           | (_iname, i) <- ie
           ]
   sourceMods = tmods ++ imods

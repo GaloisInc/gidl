@@ -8,7 +8,8 @@ import Gidl.Backend.Cabal
            (cabalFileArtifact,CabalFile(..),defaultCabalFile,filePathToPackage)
 import Gidl.Backend.Haskell.Interface (interfaceModule,ifModuleName)
 import Gidl.Backend.Haskell.Types (typeModule,isUserDefined,typeModuleName)
-import Gidl.Interface (Interface(..),InterfaceEnv(..),MethodName,Method(..))
+import Gidl.Interface
+           (Interface(..),InterfaceEnv(..),MethodName,Method(..),Perm(..))
 import Gidl.Types (Type,TypeEnv(..))
 
 import Data.Char (isSpace)
@@ -36,18 +37,18 @@ rpcBackend typeEnv@(TypeEnv te) ifaceEnv@(InterfaceEnv ie) pkgName nsStr =
   namespace  = strToNs nsStr
 
   buildDeps  = [ "cereal", "QuickCheck", "snap-core", "snap-server", "stm"
-               , "bytestring" ]
+               , "bytestring", "aeson" ]
 
   modules    = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
 
   sourceMods = tmods ++ imods
 
-  tmods      = [ typeModule (namespace ++ ["Types"]) t
+  tmods      = [ typeModule True (namespace ++ ["Types"]) t
                | (_tn, t) <- te
                , isUserDefined t
                ]
 
-  imods      = concat [ [ interfaceModule (namespace ++ ["Interface"]) i
+  imods      = concat [ [ interfaceModule True (namespace ++ ["Interface"]) i
                         , rpcModule typeEnv namespace i ]
                       | (_iname, i) <- ie
                       ]
@@ -180,21 +181,36 @@ runServerDef typeEnv iface = hang 2 (text "rpcServer" <+> body)
     nest 2 (text "manager" <+> char '=' <+/> align (text "..."))
 
 
-
-
 -- | Define one route for each interface member
 routes :: TypeEnv -> Interface -> Doc
-routes typeEnv iface =
+routes types iface =
   text "route" <+> methods
 
   where
 
-  methods =
-    align (char '[' <> stack (punctuate comma (map mkRoute (allMethods iface)))
-                    <> char ']')
+  methods = align (char '['
+         <> stack (punctuate comma (concatMap (mkRoute types) (allMethods iface)))
+         <> char ']')
 
-  mkRoute (name,method) =
-    tuple [ text (show name), text "writeBS \"foo\"" ]
+mkRoute :: TypeEnv -> (MethodName,Method) -> [Doc]
+mkRoute types (name,method) =
+  [ tuple [ text (show name), h ] | h <- handlersFor method ]
+  where
+  handlersFor (StreamMethod _  ty) = [ readMethod types ty ]
+  handlersFor (AttrMethod perm ty) = [ m types ty | m <- permMethods perm ]
+
+
+permMethods :: Perm -> [ TypeEnv -> Type -> Doc ]
+permMethods Read      = [ readMethod              ]
+permMethods Write     = [ writeMethod             ]
+permMethods ReadWrite = [ readMethod, writeMethod ]
+
+
+readMethod :: TypeEnv -> Type -> Doc
+readMethod types _ = text "writeBS \"read\""
+
+writeMethod :: TypeEnv -> Type -> Doc
+writeMethod types _ = text "writeBS \"write\""
 
 
 -- Pretty-printing Helpers -----------------------------------------------------

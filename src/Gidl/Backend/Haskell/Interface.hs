@@ -13,13 +13,14 @@ import Gidl.Backend.Haskell.Types
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
-interfaceModule :: [String] -> Interface -> Artifact
-interfaceModule modulepath i =
+interfaceModule :: Bool -> [String] -> Interface -> Artifact
+interfaceModule useAeson modulepath i =
   artifactPath (intercalate "/" modulepath) $
   artifactText ((ifModuleName i) ++ ".hs") $
   prettyLazyText 80 $
-  stack
+  stack $
     [ text "{-# LANGUAGE DeriveDataTypeable #-}"
+    , text "{-# LANGUAGE DeriveGeneric #-}"
     , empty
     , text "module"
       <+> im (ifModuleName i)
@@ -27,9 +28,10 @@ interfaceModule modulepath i =
     , empty
     , stack $ typeimports ++ extraimports
     , empty
-    , schemaDoc (ifModuleName i) (producerSchema i)
+    , schemaDoc useAeson (ifModuleName i) (producerSchema i)
     , empty
-    , schemaDoc (ifModuleName i) (consumerSchema i)
+    , schemaDoc useAeson (ifModuleName i) (consumerSchema i)
+    , empty
     ]
   where
   im mname = mconcat $ punctuate dot
@@ -45,13 +47,16 @@ interfaceModule modulepath i =
   extraimports = [ text "import Data.Serialize"
                  , text "import Data.Typeable"
                  , text "import Data.Data"
-                 , text "import qualified Test.QuickCheck as Q" ]
+                 , text "import GHC.Generics (Generic)"
+                 , text "import qualified Test.QuickCheck as Q"
+                 ] ++
+                 [ text "import Data.Aeson (ToJSON,FromJSON)" | useAeson ]
 
-schemaDoc :: String -> Schema -> Doc
-schemaDoc interfaceName (Schema schemaName [])     =
+schemaDoc :: Bool -> String -> Schema -> Doc
+schemaDoc _ interfaceName (Schema schemaName [])     =
     text "-- Cannot define" <+> text schemaName  <+> text "schema for"
         <+> text interfaceName <+> text "interface: schema is empty"
-schemaDoc interfaceName (Schema schemaName schema) = stack
+schemaDoc useAeson interfaceName (Schema schemaName schema) = stack $
     [ text "-- Define" <+> text schemaName  <+> text "schema for"
         <+> text interfaceName <+> text "interface"
     , text "data" <+> text typeName
@@ -99,10 +104,13 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
         ]
     , empty
     , arbitraryInstance typeName
-    ]
+    , empty
+    ] ++
+    [ toJSONInstance   typeName | useAeson ] ++
+    [ fromJSONInstance typeName | useAeson ]
   where
   constructorName n = userTypeModuleName n ++ schemaName
-  deriv = text "deriving (Eq, Show, Data, Typeable)"
+  deriv = text "deriving (Eq, Show, Data, Typeable, Generic)"
   typeName = interfaceName ++ schemaName
 
 ifModuleName :: Interface -> String
