@@ -10,6 +10,7 @@ import           Data.SCargot.Comments (withHaskellComments)
 import           Data.SCargot.General ( SExprSpec
                                       , convertSpec
                                       , decode
+                                      , encodeOne
                                       , asWellFormed
                                       )
 import           Data.SCargot.HaskLike (HaskLikeAtom(..), haskLikeSpec)
@@ -133,20 +134,40 @@ infix 9 /?/
 Left msg /?/ ctx = throw (msg ++ "\n  in parsing " ++ ctx)
 r        /?/ _   = r
 
+infix 9 `asErr`
+asErr :: Either String a -> String -> Either String a
+Left _ `asErr` msg = throw msg
+r      `asErr` _   = r
+
+seShow :: WellFormedSExpr HaskLikeAtom -> String
+seShow sx = "`" ++ unpack (encodeOne (asWellFormed haskLikeSpec) sx) ++ "`"
+
+atShow :: WellFormedSExpr HaskLikeAtom -> String
+atShow e = go e ++ " " ++ seShow e
+  where
+    go (A (HSInt _))    = "int"
+    go (A (HSString _)) = "string"
+    go (A (HSIdent _))  = "identifier"
+    go (A (HSFloat _))  = "float"
+    go (L _)            = "list"
+    go _                = "??"
+
 -- basic parsing of things (these might show up in s-cargot
 --  proper eventually?)
+
 tSymbol :: Parse String
-tSymbol = asAtom go
+tSymbol e = asAtom go e `asErr`
+              ("Expected identifier; got " ++ atShow e)
   where go (HSIdent i) = return (unpack i)
-        go sx          = throw ("Expected identifier; got " ++ show sx)
+        go sx          = throw ("Expected identifier; got " ++ atShow (A sx))
 
 tType :: Parse String
 tType = tSymbol
 
 tInteger :: Parse Integer
-tInteger = asAtom go
+tInteger e = asAtom go e `asErr` ("Expected integer; got " ++ atShow e)
   where go (HSInt n) = return n
-        go sx        = throw ("Expected integer; got " ++ show sx)
+        go sx        = throw ("Expected integer; got " ++ atShow (A sx))
 
 -- some parsing of gidl-specific types
 tBits :: Parse Bits
@@ -160,38 +181,41 @@ tWidth 64 = return Bits64
 tWidth _  = throw "Expected enum bit size to be 8, 16, 32, or 64"
 
 tPermission :: Parse Perm
-tPermission = asAtom go
+tPermission e = asAtom go e `asErr` ("unknown permission: " ++ seShow e)
   where go token
           | token == "read"      || token == "r"  = return Read
           | token == "write"     || token == "w"  = return Write
           | token == "readwrite" || token == "rw" = return ReadWrite
-          | otherwise = throw ("unknown permission: " ++ show token)
+          | otherwise = throw "error"
 
 -- newtypes
 tNewtypeDecl :: Parse Decl
-tNewtypeDecl = asList $ \ls -> do
-  car (isAtom "def-newtype") ls
-  name <- cdr (car tSymbol) ls       /?/ "newtype name"
-  typ  <- cdr (cdr (car tSymbol)) ls /?/ "newtype type"
-  return (NewtypeDecl name typ)
+tNewtypeDecl = asList go
+ where go ["def-newtype",name,typ] =
+         NewtypeDecl <$> tSymbol name /?/ "newtype name"
+                     <*> tSymbol typ  /?/ "newtype type"
+       go _ = throw "wrong number of elements"
 
 -- structs
 tStructDecl :: Parse Decl
 tStructDecl = asList go
   where go ("def-struct":name:body) =
-            StructDecl <$> (tSymbol name         /?/ "structure name")
-                       <*> (mapM tStructRow body /?/ "structure body")
+            StructDecl
+              <$> (tSymbol name         /?/ "struct name")
+              <*> (mapM tStructRow body /?/
+                     ("struct body " ++ seShow (L (A "..." : body))))
         go _ = throw "invalid struct decl"
 
 tStructRow :: Parse (Identifier, Identifier)
-tStructRow = fromPair tSymbol tType
+tStructRow sx =
+  fromPair tSymbol tType sx /?/ ("struct row " ++ seShow sx)
 
 -- enums
 tEnumDecl :: Parse Decl
 tEnumDecl = asList go
   where go ("def-enum" : name : body) =
           EnumDecl <$> tEnumName name      /?/ "enum name"
-                   <*> mapM tEnumBody body /?/ "enum body"
+                   <*> mapM tEnumBody body
         go _ = throw "invalid enum decl"
 
 tEnumName :: Parse (Identifier, Bits)
@@ -199,7 +223,8 @@ tEnumName (L [name, size]) = (,) <$> tSymbol name <*> tBits size
 tEnumName name             = (,) <$> tSymbol name <*> return Bits32
 
 tEnumBody :: Parse (Identifier, Integer)
-tEnumBody = fromPair tSymbol tInteger
+tEnumBody e =
+  fromPair tSymbol tInteger e /?/ ("enum constructor " ++ seShow e)
 
 -- interface declarations
 tInterfaceDecl :: Parse Decl
@@ -207,28 +232,85 @@ tInterfaceDecl = asList go
   where go ("def-interface":name:parents:body) =
           InterfaceDecl
             <$> tSymbol name                  /?/ "interface name"
-            <*> asList (mapM tSymbol) parents /?/ "interface supers"
-            <*> mapM tInterfaceMethod body    /?/ "interface methods"
+            <*> asList (mapM tSymbol) parents
+                  /?/ ("interface parents " ++ seShow parents)
+            <*> mapM tInterfaceMethod body
         go _ = throw "invalid interface decl"
 
 tInterfaceMethod :: Parse (Identifier, MethodDecl)
-tInterfaceMethod = fromPair tSymbol (asList go)
+tInterfaceMethod e =
+  fromPair tSymbol (asList go) e /?/ ("interface method " ++ seShow e)
   where go ["attr",   p, t] = AttrDecl   <$> tPermission p <*> tType t
         go ["stream", n, t] = StreamDecl <$> tInteger n    <*> tType t
-        go (x:_) = throw ("unknown interface type: " ++ show x)
+        go (x:_) = throw ("unknown interface type: " ++ seShow x)
         go []    = throw "empty interface decl"
 
 -- declarations in general
 tDecl :: Parse Decl
-tDecl ls@(L ("def-struct"    : _)) = tStructDecl ls    /?/ "struct"
-tDecl ls@(L ("def-newtype"   : _)) = tNewtypeDecl ls   /?/ "newtype"
-tDecl ls@(L ("def-enum"      : _)) = tEnumDecl ls      /?/ "enum"
-tDecl ls@(L ("def-interface" : _)) = tInterfaceDecl ls /?/ "interface"
+tDecl ls@(L ("def-struct" : _)) =
+  tStructDecl ls /?/ ("struct " ++ showHead ls)
+tDecl ls@(L ("def-newtype" : _)) =
+  tNewtypeDecl ls /?/ ("newtype " ++ showHead ls)
+tDecl ls@(L ("def-enum" : _)) =
+  tEnumDecl ls /?/ ("enum " ++ showHead ls)
+tDecl ls@(L ("def-interface" : _)) =
+  tInterfaceDecl ls /?/ ("interface " ++ showHead ls)
 tDecl (L (A name : _)) =
-  throw ("unknown declaration type: " ++ show name)
+  throw ("unknown declaration type: " ++ seShow (A name))
 tDecl item = do
-  throw ("invalid top-level item " ++ show item)
+  throw ("invalid top-level item " ++ seShow item)
+
+showHead :: WellFormedSExpr HaskLikeAtom -> String
+showHead (L (a:b:_)) = seShow (L [a,b,"..."])
+showHead sx          = seShow sx
 
 -- For now, no pretty-printing (but it will come soon!)
+ident :: Identifier -> WellFormedSExpr HaskLikeAtom
+ident = A . HSIdent . pack
+
+int :: Integer -> WellFormedSExpr HaskLikeAtom
+int = A . HSInt
+
+ppBits :: Bits -> WellFormedSExpr HaskLikeAtom
+ppBits Bits8  = A (HSInt 8)
+ppBits Bits16 = A (HSInt 16)
+ppBits Bits32 = A (HSInt 32)
+ppBits Bits64 = A (HSInt 64)
+
 ppDecl :: Decl -> WellFormedSExpr HaskLikeAtom
-ppDecl = const "<unimplemented>"
+ppDecl (NewtypeDecl name typ) =
+  L ["def-newtype", ident name, ident typ ]
+ppDecl (EnumDecl (name, Bits32) fields) =
+  L ( "def-enum"
+    : ident name
+    : [ L [ ident a, int b ]
+       | (a, b) <- fields
+       ]
+    )
+ppDecl (EnumDecl (name, bits) fields) =
+  L ( "def-enum"
+    : L [ ident name, ppBits bits ]
+    : [ L [ ident a, int b ]
+      | (a, b) <- fields
+      ]
+    )
+ppDecl (StructDecl name fields) =
+  L ( "def-struct"
+    : ident name
+    : [ L [ident a, ident b ]
+      | (a, b) <- fields
+      ]
+    )
+ppDecl (InterfaceDecl name parents methods) =
+  L ( "def-interface"
+    : ident name
+    : L (map ident parents)
+    : map go methods
+    ) where go (n, m) = L [ ident n, ppMethod m ]
+
+ppMethod :: MethodDecl -> WellFormedSExpr HaskLikeAtom
+ppMethod (StreamDecl rate name) = L [ "stream", int rate, ident name ]
+ppMethod (AttrDecl perm name) = L [ "attr", ppPerm perm, ident name ]
+  where ppPerm Read      = "r"
+        ppPerm Write     = "w"
+        ppPerm ReadWrite = "rw"

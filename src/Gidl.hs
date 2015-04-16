@@ -126,7 +126,7 @@ run = do
   opts <- parseOpts args
   idl <- readFile (idlpath opts)
   case parseDecls idl of
-    Left e -> print e >> exitFailure
+    Left e -> putStrLn e >> exitFailure
     Right (te, ie) -> do
       when (debug opts) $ do
         putStrLn (ppShow te)
