@@ -36,7 +36,7 @@ library
                        Gidl.Backend.Ivory.Types,
                        Gidl.Backend.Tower,
                        Gidl.Backend.Tower.Schema,
-                       Gidl.Backend.Tower.Interface
+                       Gidl.Backend.Tower.Server
 
   other-modules:       Paths_gidl
 

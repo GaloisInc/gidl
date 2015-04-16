@@ -1,5 +1,5 @@
 
-module Gidl.Backend.Tower.Interface where
+module Gidl.Backend.Tower.Server where
 
 
 import Data.Monoid
@@ -12,10 +12,31 @@ import Gidl.Backend.Ivory.Schema (ifModuleName)
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
-interfaceModule :: [String] -> Interface -> Artifact
-interfaceModule modulepath i =
+umbrellaModule :: [String] -> Interface -> Artifact
+umbrellaModule modulepath i =
   artifactPath (intercalate "/" modulepath) $
   artifactText (ifModuleName i ++ ".hs") $
+  prettyLazyText 80 $
+  stack
+    [ text "module" <+> mname
+    , indent 2 $ encloseStack lparen (rparen <+> text "where") comma
+        [ text "module" <+> im "Producer"
+        , text "module" <+> im "Consumer"
+        , text "module" <+> im "Server"
+        ]
+    , text "import" <+> im "Producer"
+    , text "import" <+> im "Consumer"
+    , text "import" <+> im "Server"
+    ]
+  where
+  modAt path = mconcat (punctuate dot (map text path))
+  mname = modAt (modulepath ++ [ifModuleName i])
+  im m = modAt (modulepath ++ [ifModuleName i, m])
+
+serverModule :: [String] -> Interface -> Artifact
+serverModule modulepath i =
+  artifactPath (intercalate "/" (modulepath ++ [ifModuleName i])) $
+  artifactText "Server.hs" $
   prettyLazyText 80 $
   stack
     [ text "{-# LANGUAGE DataKinds #-}"
@@ -27,7 +48,7 @@ interfaceModule modulepath i =
     , text "{-# OPTIONS_GHC -fno-warn-unused-matches #-}"
     , empty
     , text "module"
-      <+> im (ifModuleName i)
+      <+> im "Server"
       <+> text "where"
     , empty
     , stack imports
@@ -47,12 +68,12 @@ interfaceModule modulepath i =
   where
   rootpath = reverse . drop 2 . reverse
   modAt path = mconcat (punctuate dot (map text path))
-  im mname = modAt (modulepath ++ [mname])
+  im mname = modAt (modulepath ++ [ifModuleName i, mname])
 
   imports =
     [ text "import" <+> modAt (rootpath modulepath ++ ["Tower", "Attr"])
-    , text "import" <+> im (ifModuleName i) <> dot <> text "Producer"
-    , text "import" <+> im (ifModuleName i) <> dot <> text "Consumer"
+    , text "import" <+> im "Producer"
+    , text "import" <+> im "Consumer"
     , text "import Ivory.Language"
     , text "import Ivory.Tower"
     ]
