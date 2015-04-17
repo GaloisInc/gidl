@@ -5,6 +5,8 @@
 
 module $module_path$.Base where
 
+import           Control.Concurrent.STM
+                     (atomically,TQueue,writeTQueue,STM,retry,TVar,newTVar)
 import           Snap.Core (Snap,route)
 import qualified Snap.Http.Server as HTTP
 import           Snap.Util.FileServe (serveDirectory)
@@ -39,3 +41,29 @@ runServer Config { .. } serveRpc =
        case cfgStaticDir of
          Just path -> route [ ("", serveDirectory path) ]
          Nothing   -> return ()
+
+
+data Request req resp = ReadRequest req (resp -> IO ())
+                      | WriteRequest req
+
+
+-- Sample Variables ------------------------------------------------------------
+
+-- | A TVar that blocks when it's empty, but allows writes even when it's full.
+newtype SampleTVar a = SampleVar (TVar (Maybe a))
+
+newTSampleVar :: STM (TSampleTVar a)
+newTSampleVar  = TSampleVar `fmap` newTVar Nothing
+
+newTSampleVarIO :: IO (TSampleTVar a)
+newTSampleVarIO  = atomically (TSampleVar `fmap` newTVar Nothing)
+
+writeTSampleVar :: SampleVar a -> a -> STM ()
+writeTSampleVar (TSampleVar tv) a = writeTVar tv (Just a)
+
+readTSampleVar :: TSampleVar a -> STM ()
+readTSampleVar (TSampleVar tv) =
+  do mb <- readTVar tv
+     case mb of
+       Just a  -> return a
+       Nothing -> retry
