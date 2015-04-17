@@ -4,8 +4,7 @@ module Gidl.Backend.Rpc (
 
 import qualified Paths_gidl as P
 
-import Gidl.Backend.Cabal
-           (cabalFileArtifact,CabalFile(..),defaultCabalFile,filePathToPackage)
+import Gidl.Backend.Cabal (cabalFileArtifact,defaultCabalFile,filePathToPackage)
 import Gidl.Backend.Haskell.Interface (interfaceModule,ifModuleName)
 import Gidl.Backend.Haskell.Types (typeModule,isUserDefined,typeModuleName)
 import Gidl.Interface
@@ -14,21 +13,20 @@ import Gidl.Schema (Schema(..),producerSchema,consumerSchema)
 import Gidl.Types (Type,TypeEnv(..))
 
 import Data.Char (isSpace)
-import Data.List (intercalate)
 import Ivory.Artifact
-           (Artifact(..),artifactPath,artifactFileName,artifactPath
-           ,artifactText,artifactCabalFile)
+           (Artifact,artifactPath,artifactFileName,artifactPath,artifactText
+           ,artifactCabalFile)
 import Ivory.Artifact.Template (artifactCabalFileTemplate)
 import Text.PrettyPrint.Mainland
            (Doc,prettyLazyText,text,empty,(<+>),(</>),(<>),char,line,parens
-           ,punctuate,stack,sep,tuple,dot,spread,cat,string,indent,hang,nest
-           ,(<+/>),align,comma,Pretty(..),braces)
+           ,punctuate,stack,tuple,dot,spread,cat,hang,nest,(<+/>),align,comma
+           ,braces)
 
 
 -- External Interface ----------------------------------------------------------
 
 rpcBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
-rpcBackend typeEnv@(TypeEnv te) ifaceEnv@(InterfaceEnv ie) pkgName nsStr =
+rpcBackend typeEnv@(TypeEnv te) (InterfaceEnv ie) pkgName nsStr =
     cabalFileArtifact (defaultCabalFile pkgName modules buildDeps)
   : artifactCabalFile P.getDataDir "support/rpc/Makefile"
   : map (artifactPath "src") (rpcBaseModule namespace : sourceMods)
@@ -81,10 +79,6 @@ strToNs str =
 
 allMethods :: Interface -> [(MethodName,Method)]
 allMethods (Interface _ ps ms) = concatMap allMethods ps ++ ms
-
-isStream :: Method -> Bool
-isStream StreamMethod{} = True
-isStream _              = False
 
 
 -- Server Generation -----------------------------------------------------------
@@ -174,18 +168,18 @@ queueTypes iface = (input,output)
 
 runServer :: Bool -> TypeEnv -> Interface -> InputQueue -> OutputQueue -> Doc
 runServer useMgr typeEnv iface input output =
-  runServerSig iface input output </> runServerDef useMgr typeEnv iface input output
+  runServerSig input output </> runServerDef useMgr typeEnv iface
 
 
-runServerSig :: Interface -> InputQueue -> OutputQueue -> Doc
-runServerSig iface input output =
+runServerSig :: InputQueue -> OutputQueue -> Doc
+runServerSig input output =
   text "rpcServer ::" <+> hang 2 (arrow [ input, output
                                         , text "Config"
                                         , text "IO ()" ])
 
 -- | Generate a definition for the server.
-runServerDef :: Bool -> TypeEnv -> Interface -> InputQueue -> OutputQueue -> Doc
-runServerDef useMgr typeEnv iface input output =
+runServerDef :: Bool -> TypeEnv -> Interface -> Doc
+runServerDef useMgr typeEnv iface =
   hang 2 (text "rpcServer" <+> body)
   where
   body = text "input output cfg" <+> char '=' </>
@@ -308,9 +302,6 @@ fieldName name = text "stream_" <> text name
 
 -- Pretty-printing Helpers -----------------------------------------------------
 
-arg :: String -> (Doc -> Doc) -> Doc
-arg name k = let x = text name in x <+> k (text name)
-
 arrow :: [Doc] -> Doc
 arrow ts = spread (punctuate (text "->") ts)
 
@@ -320,18 +311,5 @@ a *. b = a <> dot <> b
 dots :: [Doc] -> Doc
 dots  = cat . punctuate dot
 
-ppImport :: Bool -> Doc -> Maybe Doc -> Doc
-ppImport isQual modName mbAs =
-  spread [ text "import"
-         , if isQual then text "qualified" else empty
-         , modName
-         , case mbAs of
-             Just alt -> text "as" <+> alt
-             Nothing  -> empty
-         ]
-
 ppModName :: [String] -> Doc
 ppModName  = dots . map text
-
-ppHaskellModule :: [String] -> String -> Doc
-ppHaskellModule ns n = foldr (\ m rest -> text m <> char '.' <> rest ) (text n) ns
