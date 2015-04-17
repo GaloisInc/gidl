@@ -19,8 +19,8 @@ import Ivory.Artifact
 import Ivory.Artifact.Template (artifactCabalFileTemplate)
 import Text.PrettyPrint.Mainland
            (Doc,prettyLazyText,text,empty,(<+>),(</>),(<>),char,line,parens
-           ,punctuate,stack,tuple,dot,spread,cat,hang,nest,(<+/>),align,comma
-           ,braces)
+           ,punctuate,stack,tuple,dot,spread,cat,hang,nest,align,comma
+           ,braces,brackets,dquotes)
 
 
 -- External Interface ----------------------------------------------------------
@@ -36,7 +36,7 @@ rpcBackend typeEnv@(TypeEnv te) (InterfaceEnv ie) pkgName nsStr =
   namespace  = strToNs nsStr
 
   buildDeps  = [ "cereal", "QuickCheck", "snap-core", "snap-server", "stm"
-               , "bytestring", "aeson" ]
+               , "bytestring", "aeson", "transformers" ]
 
   modules    = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
 
@@ -81,6 +81,10 @@ allMethods :: Interface -> [(MethodName,Method)]
 allMethods (Interface _ ps ms) = concatMap allMethods ps ++ ms
 
 
+isEmptySchema :: Schema -> Bool
+isEmptySchema (Schema _ ms) = null ms
+
+
 -- Server Generation -----------------------------------------------------------
 
 rpcModule :: TypeEnv -> [String] -> Interface -> Artifact
@@ -111,7 +115,7 @@ genServer typeEnv ns iface ifaceMod = stack $
   , runServer useManager typeEnv iface input output
   ]
   where
-  (useManager,managerDefs) = managerDef iface output
+  (useManager,managerDefs) = managerDef iface input
 
   (input,output) = queueTypes iface
 
@@ -142,11 +146,13 @@ importInterface ns ifaceName =
 
 webServerImports :: Doc
 webServerImports  =
-  stack [ text "import"           <+> (ppModName ["Snap","Core"])
-        , text "import qualified" <+> (ppModName ["Data","ByteString"])
-                                  <+> text "as S"
-        , text "import"           <+> (ppModName ["Control","Concurrent"])
-        , text "import"           <+> (ppModName ["Control","Concurrent","STM"])
+  stack [ text "import qualified Snap.Core as Snap"
+        , text "import qualified Data.ByteString as S"
+        , text "import           Control.Concurrent (forkIO)"
+        , text "import           Control.Concurrent.STM"
+        , text "import           Control.Monad (msum,forever)"
+        , text "import           Control.Monad.IO.Class (liftIO)"
+        , text "import           Data.Aeson (encode,decode)"
         ]
 
 
@@ -168,52 +174,77 @@ queueTypes iface = (input,output)
 
 runServer :: Bool -> TypeEnv -> Interface -> InputQueue -> OutputQueue -> Doc
 runServer useMgr typeEnv iface input output =
-  runServerSig input output </> runServerDef useMgr typeEnv iface
+  runServerSig hasConsumer input output </>
+  runServerDef hasConsumer useMgr typeEnv iface
+  where
+  hasConsumer = not (isEmptySchema (consumerSchema iface))
 
 
-runServerSig :: InputQueue -> OutputQueue -> Doc
-runServerSig input output =
-  text "rpcServer ::" <+> hang 2 (arrow [ input, output
-                                        , text "Config"
-                                        , text "IO ()" ])
+runServerSig :: Bool -> InputQueue -> OutputQueue -> Doc
+runServerSig hasConsumer input output =
+  text "rpcServer ::" <+> hang 2 (arrow tys)
+
+  where
+  tys = [ input                       ] ++
+        [ output | hasConsumer        ] ++
+        [ text "Config", text "IO ()" ]
 
 -- | Generate a definition for the server.
-runServerDef :: Bool -> TypeEnv -> Interface -> Doc
-runServerDef useMgr typeEnv iface =
+runServerDef :: Bool -> Bool -> TypeEnv -> Interface -> Doc
+runServerDef hasConsumer useMgr typeEnv iface =
   hang 2 (text "rpcServer" <+> body)
   where
-  body = text "input output cfg" <+> char '=' </>
-         nest 2 (text "do" <+> align (stack stmts))
-             </> text "where"
-             </> routesDef
+  args = spread $
+    [ text "input"                ] ++
+    [ text "output" | hasConsumer ] ++
+    [ text "cfg"                  ]
 
-  stmts = [ text "state <- mkState"                           | useMgr ]
-       ++ [ defOutput                                                  ]
-       ++ [ text "_ <- forkIO (manager state output output')" | useMgr ]
-       ++ [ text "runServer cfg" <+> text "routes"                     ]
+  body =  args <+> char '=' </> nest 2 (doStmts stmts)
 
-  defOutput
-    | useMgr    = text "output' <- newTQueue"
-    | otherwise = text "let output' = output"
+  stmts = [ text "state <- mkState"                         | useMgr ]
+       ++ [ defInput                                                 ]
+       ++ [ text "_ <- forkIO (manager state input input')" | useMgr ]
+       ++ [ text "runServer cfg $ Snap.route" </> routesDef          ]
 
-  routesDef = nest 3 $
-    nest 2 (text "routes" <+> char '=' <+/> align (routes typeEnv iface))
+  defInput
+    | useMgr    = text "input' <- newTQueueIO"
+    | otherwise = text "let input' = input"
+
+  routesDef = nest 2 (align (routes typeEnv iface (text "state")))
 
 
 -- | Define one route for each interface member
-routes :: TypeEnv -> Interface -> Doc
-routes types iface = text "route" <+> align methods
+routes :: TypeEnv -> Interface -> Doc -> Doc
+routes types iface state =
+  align $ char '['
+       <> nest 1 (stack (commas (map (mkRoute types pfx state) (allMethods iface))))
+       <> char ']'
   where
-  methods = char '['
-         <> stack (punctuate comma (concatMap (mkRoute types) (allMethods iface)))
-         <> char ']'
+  Interface pfx _ _ = iface
 
-mkRoute :: TypeEnv -> (MethodName,Method) -> [Doc]
-mkRoute types (name,method) =
-  [ tuple [ text (show name), h ] | h <- handlersFor method ]
+
+mkRoute :: TypeEnv -> String -> Doc -> (MethodName,Method) -> Doc
+mkRoute types iface state (name,method) =
+  parens (url <> comma </> guardMethods (handlersFor method))
   where
-  handlersFor (StreamMethod _  ty) = [ readMethod types ty ]
+  url = dquotes (text iface <> char '/' <> text name)
+
+  guardMethods [h] = h
+  guardMethods hs  = nest 2 $ text "msum"
+                          </> brackets (stack (commas hs))
+
+  handlersFor (StreamMethod _  _ ) = [ readStream state name ]
   handlersFor (AttrMethod perm ty) = [ m types ty | m <- permMethods perm ]
+
+
+readStream :: Doc -> MethodName -> Doc
+readStream state name = nest 2 $ text "Snap.method Snap.GET $"
+  </> doStmts
+    [ text "x <- liftIO (atomically (readTSampleVar" <+> svar <> text "))"
+    , text "Snap.writeLBS (encode x)"
+    ]
+  where
+  svar = parens (fieldName name <+> state)
 
 
 permMethods :: Perm -> [ TypeEnv -> Type -> Doc ]
@@ -223,18 +254,20 @@ permMethods ReadWrite = [ readMethod, writeMethod ]
 
 
 readMethod :: TypeEnv -> Type -> Doc
-readMethod types _ = text "writeBS \"read\""
+readMethod types _ = doStmts
+  [ text "Snap.writeBS \"read\""
+  ]
 
 writeMethod :: TypeEnv -> Type -> Doc
-writeMethod types _ = text "writeBS \"write\""
+writeMethod types _ = text "Snap.writeBS \"write\""
 
 
 -- The stream manager ----------------------------------------------------------
 
 -- | Define everything associated with the manager, but only if there are stream
 -- values to manage.
-managerDef :: Interface -> OutputQueue -> (Bool,Doc)
-managerDef iface output
+managerDef :: Interface -> InputQueue -> (Bool,Doc)
+managerDef iface input
   | null streams = (False,empty)
   | otherwise    = (True,stack defs </> empty)
   where
@@ -247,13 +280,13 @@ managerDef iface output
          , empty
          , mkStateDef streams
          , empty
-         , text "manager ::" <+> arrow [ stateType, output, output, text "IO ()" ]
-         , nest 2 $ text "manager state output filtered = forever $"
-                </> text "do" <+> align stmts
+         , text "manager ::" <+> arrow [ stateType, input, input, text "IO ()" ]
+         , nest 2 $ text "manager state input filtered = forever $"
+                </> doStmts stmts
          ]
 
-  stmts = text "msg <- atomically (readTQueue output)"
-      </> nest 2 (text "case msg of" </> stack (map mkCase streams ++ [defCase]))
+  stmts = [ text "msg <- atomically (readTQueue input)"
+          , nest 2 (text "case msg of" </> stack (map mkCase streams ++ [defCase])) ]
 
   -- name the producer constructor for a stream element
   Schema prodSuffix _ = producerSchema iface
@@ -287,7 +320,7 @@ stateDef streams = (text "State",def)
 mkStateDef :: [(MethodName,Type)] -> Doc
 mkStateDef streams = stack
   [ text "mkState :: IO State"
-  , nest 2 (text "mkState  =" </> nest 3 (text "do" <+> align (stack stmts)))
+  , nest 2 (text "mkState  =" </> nest 3 (doStmts stmts))
   ]
   where
   stmts = [ fieldName n <+> text "<- newTSampleVarIO" | (n,_) <- streams ]
@@ -305,6 +338,9 @@ fieldName name = text "stream_" <> text name
 arrow :: [Doc] -> Doc
 arrow ts = spread (punctuate (text "->") ts)
 
+commas :: [Doc] -> [Doc]
+commas  = punctuate comma
+
 (*.) :: Doc -> Doc -> Doc
 a *. b = a <> dot <> b
 
@@ -313,3 +349,7 @@ dots  = cat . punctuate dot
 
 ppModName :: [String] -> Doc
 ppModName  = dots . map text
+
+doStmts :: [Doc] -> Doc
+doStmts [d] = nest 2 d
+doStmts ds  = text "do" <+> align (stack (map (nest 2) ds))
