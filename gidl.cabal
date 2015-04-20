@@ -12,6 +12,7 @@ data-files: support/ivory/Unpack.hs.template,
             support/ivory/CodeGen.hs.template,
             support/ivory/Makefile,
             support/tower/CodeGen.hs.template,
+            support/tower/Attr.hs.template,
             support/tower/default.conf,
             support/tower/Makefile,
             support/rpc/Base.hs.template,
@@ -38,7 +39,7 @@ library
                        Gidl.Backend.Rpc,
                        Gidl.Backend.Tower,
                        Gidl.Backend.Tower.Schema,
-                       Gidl.Backend.Tower.Interface
+                       Gidl.Backend.Tower.Server
 
   other-modules:       Paths_gidl
 
@@ -48,7 +49,9 @@ library
                        parsec,
                        pretty-show,
                        transformers,
-                       ivory-artifact
+                       ivory-artifact,
+                       s-cargot,
+                       text
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Wall
@@ -62,4 +65,3 @@ executable             gidl
 
   default-language:    Haskell2010
   ghc-options:         -Wall
-

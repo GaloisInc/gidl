@@ -1,6 +1,4 @@
 language: haskell
-
-
 before_install:
   - sudo add-apt-repository -y ppa:terry.guo/gcc-arm-embedded
   - sudo apt-get update -qq
@@ -11,15 +9,21 @@ before_install:
   - export TOWER_REPO=$PWD/tower
   - git clone https://github.com/galoisinc/ivory-tower-stm32
   - export BSP_REPO=$PWD/ivory-tower-stm32
+  - git clone https://github.com/aisamanra/s-cargot
+  - export SCARGOT_REPO=$PWD/s-cargot
 install:
+  - cabal install cabal-install
   - cabal install alex
   - cabal install happy
 script:
   - ghc --version
   - cabal --version
   - arm-none-eabi-gcc --version
-  - IVORY_REPO=$IVORY_REPO TOWER_REPO=$TOWER_REPO BSP_REPO=$BSP_REPO make create-sandbox
+  - SCARGOT_REPO=$SCARGOT_REPO IVORY_REPO=$IVORY_REPO TOWER_REPO=$TOWER_REPO BSP_REPO=$BSP_REPO make create-sandbox
   - IVORY_REPO=$IVORY_REPO TOWER_REPO=$TOWER_REPO BSP_REPO=$BSP_REPO make
   - IVORY_REPO=$IVORY_REPO TOWER_REPO=$TOWER_REPO BSP_REPO=$BSP_REPO make test
 ghc:
   - 7.8
+branches:
+  except:
+    - /^wip.*$/

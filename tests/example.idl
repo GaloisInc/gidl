@@ -1,22 +1,20 @@
-
 (def-newtype time_micros_t sint64_t)
 
 -- comments should be haskell style, because we're suing parsec's haskell lexer
 
 -- enums default to 32 bit width if you don't really care
 (def-enum mode_t
- ((stabilize 0)
-  (auto 1)))
+ (stabilize 0)
+ (auto 1))
 
 -- or you can specify a width
-(def-enum armed_t 
- 8
- ((disarmed 0)
-  (armed 1)))
+(def-enum (armed_t 8)
+ (disarmed 0)
+ (armed 1))
 
 (def-struct heartbeat_t
- ((time time_micros_t)
-  (armed armed_t)))
+ (time time_micros_t)
+ (armed armed_t))
 
 (def-newtype lat_t sint32_t)
 (def-newtype lon_t sint32_t)
@@ -31,15 +29,15 @@
 (def-newtype meters_t float_t)
 
 (def-struct coordinate_t
- ((lat lat_t)
-  (lon lon_t)
-  (alt meters_t)))
+ (lat lat_t)
+ (lon lon_t)
+ (alt meters_t))
 
 (def-struct timed_coord_t
-  ((lat lat_t)
-   (lon lon_t)
-   (alt meters_t)
-   (time time_micros_t)))
+  (lat lat_t)
+  (lon lon_t)
+  (alt meters_t)
+  (time time_micros_t))
 
 -- Todo: the following interface syntax and semantics are a strawman.
 -- Interfaces have methods that are either streams or attrs.
@@ -48,16 +46,15 @@
 -- to zero). they also implicitly define an attr $(steamname)-stream-rate,
 -- which permits changing the stream rate at runtime.
 
-(def-interface vehicle_i
- ((heartbeat (stream 10 heartbeat_t))))
+(def-interface vehicle_i ()
+ (heartbeat (stream 10 heartbeat_t)))
 
 -- Interfaces implement java-style inheritance. No shadowing of inherited method
 -- names permitted.
 
-(def-interface controllable_vehicle_i
-  ((current_waypoint (attr read      coordinate_t))
-   (next_waypoint    (attr readwrite timed_coord_t)))
-  (vehicle_i)) -- Inherits from interface vehicle
+(def-interface controllable_vehicle_i (vehicle_i) -- Inherits from interface vehicle
+  (current_waypoint (attr read      coordinate_t))
+  (next_waypoint    (attr readwrite timed_coord_t)))
 
 -- The idea here is that, when negotiating a gidl connection, the client can
 -- specify or negotiate what interface is supported.
@@ -68,4 +65,3 @@
 -- This allows us to specify various kinds of vehicles might exist without
 -- repeating ourselves, and provides a way to
 -- manage new functionality without breaking legacy code.
-
