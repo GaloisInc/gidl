@@ -272,9 +272,15 @@ readAttr suffix msg = text "Snap.method Snap.GET $" <+> doStmts
   ]
 
 writeAttr :: String -> Message -> Doc
-writeAttr _ _ = text "Snap.method Snap.POST $" <+> doStmts
-  [ text "Snap.writeBS \"write\""
+writeAttr suffix msg = text "Snap.method Snap.POST $" <+> doStmts
+  [ text "bytes <- Snap.readRequestBody 32768"
+  , text "case decode bytes of" </>
+      text "Just req -> liftIO $ sendRequest_ conn $" <+>
+                            text con <+> text "req" </>
+      text "Nothing  -> Snap.modifyResponse $ Snap.setResponseCode 400"
   ]
+  where
+  con = constrName suffix msg
 
 
 -- The stream manager ----------------------------------------------------------
@@ -304,7 +310,7 @@ managerDef iface input
 
   stmts = [ text "msg <- atomically (readTQueue input)"
           , nest 2 (text "case msg of" </>
-                   stack (map mkCase streams ++ [defCase | hasConsumer ])) ]
+                   stack (map mkCase streams ++ [ defCase | hasConsumer ])) ]
 
   -- name the producer constructor for a stream element
   Schema prodSuffix _ = producerSchema iface
