@@ -6,10 +6,13 @@ import qualified Paths_gidl as P
 
 import Gidl.Backend.Cabal (cabalFileArtifact,defaultCabalFile,filePathToPackage)
 import Gidl.Backend.Haskell.Interface (interfaceModule,ifModuleName)
-import Gidl.Backend.Haskell.Types (typeModule,isUserDefined,typeModuleName)
+import Gidl.Backend.Haskell.Types
+           (typeModule,isUserDefined,typeModuleName,userTypeModuleName)
 import Gidl.Interface
            (Interface(..),InterfaceEnv(..),MethodName,Method(..),Perm(..))
-import Gidl.Schema (Schema(..),producerSchema,consumerSchema)
+import Gidl.Schema
+           (Schema(..),producerSchema,consumerSchema,Message(..)
+           ,consumerMessages)
 import Gidl.Types (Type,TypeEnv(..))
 
 import Data.Char (isSpace)
@@ -112,7 +115,7 @@ genServer typeEnv ns iface ifaceMod = stack $
   , line
   , line
   , managerDefs
-  , runServer useManager typeEnv iface input output
+  , runServer useManager iface input output
   ]
   where
   (useManager,managerDefs) = managerDef iface input
@@ -172,10 +175,10 @@ queueTypes iface = (input,output)
   output = text "TQueue" <+> text cons
 
 
-runServer :: Bool -> TypeEnv -> Interface -> InputQueue -> OutputQueue -> Doc
-runServer useMgr typeEnv iface input output =
+runServer :: Bool -> Interface -> InputQueue -> OutputQueue -> Doc
+runServer useMgr iface input output =
   runServerSig hasConsumer input output </>
-  runServerDef hasConsumer useMgr typeEnv iface
+  runServerDef hasConsumer useMgr iface
   where
   hasConsumer = not (isEmptySchema (consumerSchema iface))
 
@@ -190,8 +193,8 @@ runServerSig hasConsumer input output =
         [ text "Config", text "IO ()" ]
 
 -- | Generate a definition for the server.
-runServerDef :: Bool -> Bool -> TypeEnv -> Interface -> Doc
-runServerDef hasConsumer useMgr typeEnv iface =
+runServerDef :: Bool -> Bool -> Interface -> Doc
+runServerDef hasConsumer useMgr iface =
   hang 2 (text "rpcServer" <+> body)
   where
   args = spread $
@@ -201,40 +204,52 @@ runServerDef hasConsumer useMgr typeEnv iface =
 
   body =  args <+> char '=' </> nest 2 (doStmts stmts)
 
-  stmts = [ text "state <- mkState"                         | useMgr ]
-       ++ [ defInput                                                 ]
-       ++ [ text "_ <- forkIO (manager state input input')" | useMgr ]
-       ++ [ text "runServer cfg $ Snap.route" </> routesDef          ]
+  stmts = [ text "state <- mkState"                         | useMgr      ]
+       ++ [ defInput                                                      ]
+       ++ [ text "_ <- forkIO (manager state input input')" | useMgr      ]
+       ++ [ text "conn <- newConn output input'"            | hasConsumer ]
+       ++ [ text "runServer cfg $ Snap.route" </> routesDef               ]
 
   defInput
     | useMgr    = text "input' <- newTQueueIO"
     | otherwise = text "let input' = input"
 
-  routesDef = nest 2 (align (routes typeEnv iface (text "state")))
+  routesDef = nest 2 (align (routes iface (text "state")))
 
 
 -- | Define one route for each interface member
-routes :: TypeEnv -> Interface -> Doc -> Doc
-routes types iface state =
-  align $ char '['
-       <> nest 1 (stack (commas (map (mkRoute types pfx state) (allMethods iface))))
-       <> char ']'
+routes :: Interface -> Doc -> Doc
+routes iface state =
+  align (char '[' <> nest 1 (stack (commas handlers)) <> char ']')
   where
   Interface pfx _ _ = iface
+  Schema suffix _   = consumerSchema iface
+
+  handlers = map (mkRoute pfx suffix state) (allMethods iface)
 
 
-mkRoute :: TypeEnv -> String -> Doc -> (MethodName,Method) -> Doc
-mkRoute types iface state (name,method) =
-  parens (url <> comma </> guardMethods (handlersFor method))
+mkRoute :: String -> String -> Doc -> (MethodName,Method) -> Doc
+mkRoute ifacePfx consSuffix state method@(name,mty) =
+  parens (url <> comma </> guardMethods (handlersFor mty))
   where
-  url = dquotes (text iface <> char '/' <> text name)
+  url = dquotes (text ifacePfx <> char '/' <> text name)
 
   guardMethods [h] = h
   guardMethods hs  = nest 2 $ text "msum"
                           </> brackets (stack (commas hs))
 
-  handlersFor (StreamMethod _  _ ) = [ readStream state name ]
-  handlersFor (AttrMethod perm ty) = [ m types ty | m <- permMethods perm ]
+  handlersFor StreamMethod {} =
+      [ readStream state name ]
+
+  handlersFor (AttrMethod Read _) =
+      [ readAttr  consSuffix m | m <- consumerMessages method ]
+
+  handlersFor (AttrMethod Write _) =
+      [ writeAttr consSuffix m | m <- consumerMessages method ]
+
+  handlersFor (AttrMethod ReadWrite ty) =
+      [ readAttr  consSuffix m | m <- consumerMessages (name,AttrMethod Read  ty) ] ++
+      [ writeAttr consSuffix m | m <- consumerMessages (name,AttrMethod Write ty) ]
 
 
 readStream :: Doc -> MethodName -> Doc
@@ -246,20 +261,20 @@ readStream state name = nest 2 $ text "Snap.method Snap.GET $"
   where
   svar = parens (fieldName name <+> state)
 
+constrName :: String -> Message -> String
+constrName suffix (Message n _) = userTypeModuleName n ++ suffix
 
-permMethods :: Perm -> [ TypeEnv -> Type -> Doc ]
-permMethods Read      = [ readMethod              ]
-permMethods Write     = [ writeMethod             ]
-permMethods ReadWrite = [ readMethod, writeMethod ]
-
-
-readMethod :: TypeEnv -> Type -> Doc
-readMethod types _ = doStmts
-  [ text "Snap.writeBS \"read\""
+readAttr :: String -> Message -> Doc
+readAttr suffix msg = text "Snap.method Snap.GET $" <+> doStmts
+  [ text "resp <- liftIO $ sendRequest conn $" <+>
+                   text (constrName suffix msg) <+> text "()"
+  , text "Snap.writeLBS (encode resp)"
   ]
 
-writeMethod :: TypeEnv -> Type -> Doc
-writeMethod types _ = text "Snap.writeBS \"write\""
+writeAttr :: String -> Message -> Doc
+writeAttr _ _ = text "Snap.method Snap.POST $" <+> doStmts
+  [ text "Snap.writeBS \"write\""
+  ]
 
 
 -- The stream manager ----------------------------------------------------------
@@ -271,6 +286,8 @@ managerDef iface input
   | null streams = (False,empty)
   | otherwise    = (True,stack defs </> empty)
   where
+
+  hasConsumer = not (isEmptySchema (consumerSchema iface))
 
   streams = [ (name,ty) | (name,StreamMethod _ ty) <- allMethods iface ]
 
@@ -286,7 +303,8 @@ managerDef iface input
          ]
 
   stmts = [ text "msg <- atomically (readTQueue input)"
-          , nest 2 (text "case msg of" </> stack (map mkCase streams ++ [defCase])) ]
+          , nest 2 (text "case msg of" </>
+                   stack (map mkCase streams ++ [defCase | hasConsumer ])) ]
 
   -- name the producer constructor for a stream element
   Schema prodSuffix _ = producerSchema iface

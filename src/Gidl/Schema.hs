@@ -16,27 +16,30 @@ data Schema = Schema String [(MsgId, Message)]
 producerSchema :: Interface -> Schema
 producerSchema ir = Schema "Producer" [(mkMsgId m, m) | m <- messages ]
   where
-  messages = concatMap mkMessages (interfaceMethods ir)
-  mkMessages (streamname, (StreamMethod _ tr)) =
-    [ Message streamname tr ]
-  mkMessages (_ , (AttrMethod Write _)) = []
-  mkMessages (attrname, (AttrMethod  _ tr)) =
-    [ Message (attrname ++ "_val") tr ]
+  messages = concatMap producerMessages (interfaceMethods ir)
+
+producerMessages :: (MethodName,Method) -> [Message]
+producerMessages (streamname, (StreamMethod _ tr)) =
+  [ Message streamname tr ]
+producerMessages (_ , (AttrMethod Write _)) = []
+producerMessages (attrname, (AttrMethod  _ tr)) =
+  [ Message (attrname ++ "_val") tr ]
 
 consumerSchema :: Interface -> Schema
 consumerSchema ir = Schema "Consumer" [(mkMsgId m, m) | m <- messages ]
   where
-  messages = concatMap mkMessages (interfaceMethods ir)
+  messages = concatMap consumerMessages (interfaceMethods ir)
 
-  mkMessages (_, (StreamMethod _ _)) = [] -- XXX eventaully add set rate?
-  mkMessages (attrname, (AttrMethod Write tr)) =
-    [ Message (attrname ++ "_set") tr ]
-  mkMessages (attrname, (AttrMethod Read _)) =
-    [ Message (attrname ++ "_get")  (PrimType VoidType) ]
-  mkMessages (attrname, (AttrMethod ReadWrite tr)) =
-    [ Message (attrname ++ "_set") tr
-    , Message (attrname ++ "_get") (PrimType VoidType)
-    ]
+consumerMessages :: (MethodName,Method) -> [Message]
+consumerMessages (_, (StreamMethod _ _)) = [] -- XXX eventaully add set rate?
+consumerMessages (attrname, (AttrMethod Write tr)) =
+  [ Message (attrname ++ "_set") tr ]
+consumerMessages (attrname, (AttrMethod Read _)) =
+  [ Message (attrname ++ "_get")  (PrimType VoidType) ]
+consumerMessages (attrname, (AttrMethod ReadWrite tr)) =
+  [ Message (attrname ++ "_set") tr
+  , Message (attrname ++ "_get") (PrimType VoidType)
+  ]
 
 
 mkMsgId :: Message -> MsgId

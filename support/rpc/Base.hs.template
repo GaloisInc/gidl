@@ -5,11 +5,16 @@
 
 module $module_path$.Base where
 
+import           Control.Concurrent (forkIO)
 import           Control.Concurrent.STM
-                     (atomically,STM,retry,TVar,newTVar,writeTVar,readTVar)
+                     (atomically,STM,retry,TVar,newTVar,writeTVar,readTVar
+                     ,TQueue,readTQueue,writeTQueue,newTQueueIO,tryReadTQueue
+                     ,TMVar,newEmptyTMVarIO,takeTMVar,putTMVar)
+import           Control.Monad (forever)
 import           Snap.Core (Snap,route)
 import qualified Snap.Http.Server as HTTP
 import           Snap.Util.FileServe (serveDirectory)
+
 
 data Config = Config { cfgPort :: !Int
                        -- ^ The port to run on
@@ -67,3 +72,43 @@ readTSampleVar (TSampleVar tv) =
      case mb of
        Just a  -> return a
        Nothing -> retry
+
+
+-- Response Handling -----------------------------------------------------------
+
+data Conn req resp = Conn { connRequests :: TQueue req
+                          , connWaiting  :: TQueue (TMVar resp)
+                          }
+
+
+-- | Fork a handler thread that will apply handlers to incoming messages.  If
+-- the handler queue is empty when a response arrives, the response is dropped.
+newConn :: TQueue req -> TQueue resp -> IO (Conn req resp)
+newConn connRequests connResps =
+  do connWaiting <- newTQueueIO
+
+     _ <- forkIO (forever
+        (do resp <- atomically (readTQueue connResps)
+            mb   <- atomically (tryReadTQueue connWaiting)
+            case mb of
+              Just var -> atomically (putTMVar var resp)
+              Nothing  -> return ()))
+
+     return Conn { .. }
+
+
+-- | Send a request that doesn't expect a response.
+sendRequest_ :: Conn req resp -> req -> IO ()
+sendRequest_ Conn { .. } req =
+  atomically (writeTQueue connRequests req)
+
+
+-- | Send a request, and block until a response is received.
+sendRequest :: Conn req resp -> req -> IO resp
+sendRequest Conn { .. } req =
+  do var <- newEmptyTMVarIO
+
+     atomically (do writeTQueue connWaiting var
+                    writeTQueue connRequests req)
+
+     atomically (takeTMVar var)

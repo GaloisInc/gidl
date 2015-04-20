@@ -64,7 +64,7 @@ rpc-backend-test:
 		-n Gidl.Test
 	make -C tests/gidl-rpc-backend-test create-sandbox
 	make -C tests/gidl-rpc-backend-test
-	make -C tests/gidl-rpc-backend-test test
+	#make -C tests/gidl-rpc-backend-test test
 
 rpc-backend-test-clean:
 	-rm -rf tests/gidl-ivory-backend-test
