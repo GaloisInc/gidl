@@ -7,15 +7,18 @@ import qualified Paths_gidl as P
 import Gidl.Backend.Cabal (cabalFileArtifact,defaultCabalFile,filePathToPackage)
 import Gidl.Backend.Haskell.Interface (interfaceModule,ifModuleName)
 import Gidl.Backend.Haskell.Types
-           (typeModule,isUserDefined,typeModuleName,userTypeModuleName)
+           (typeModule,isUserDefined,typeModuleName,userTypeModuleName
+           ,importType,importDecl)
 import Gidl.Interface
-           (Interface(..),InterfaceEnv(..),MethodName,Method(..),Perm(..))
+           (Interface(..),InterfaceEnv(..),MethodName,Method(..),Perm(..)
+           ,interfaceMethods)
 import Gidl.Schema
            (Schema(..),producerSchema,consumerSchema,Message(..)
            ,consumerMessages)
 import Gidl.Types (Type,TypeEnv(..))
 
 import Data.Char (isSpace)
+import Data.List (nub)
 import Ivory.Artifact
            (Artifact,artifactPath,artifactFileName,artifactPath,artifactText
            ,artifactCabalFile)
@@ -29,7 +32,7 @@ import Text.PrettyPrint.Mainland
 -- External Interface ----------------------------------------------------------
 
 rpcBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
-rpcBackend typeEnv@(TypeEnv te) (InterfaceEnv ie) pkgName nsStr =
+rpcBackend (TypeEnv te) (InterfaceEnv ie) pkgName nsStr =
     cabalFileArtifact (defaultCabalFile pkgName modules buildDeps)
   : artifactCabalFile P.getDataDir "support/rpc/Makefile"
   : map (artifactPath "src") (rpcBaseModule namespace : sourceMods)
@@ -39,7 +42,7 @@ rpcBackend typeEnv@(TypeEnv te) (InterfaceEnv ie) pkgName nsStr =
   namespace  = strToNs nsStr
 
   buildDeps  = [ "cereal", "QuickCheck", "snap-core", "snap-server", "stm"
-               , "bytestring", "aeson", "transformers" ]
+               , "aeson", "transformers" ]
 
   modules    = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
 
@@ -51,7 +54,7 @@ rpcBackend typeEnv@(TypeEnv te) (InterfaceEnv ie) pkgName nsStr =
                ]
 
   imods      = concat [ [ interfaceModule True (namespace ++ ["Interface"]) i
-                        , rpcModule typeEnv namespace i ]
+                        , rpcModule namespace i ]
                       | (_iname, i) <- ie
                       ]
 
@@ -90,35 +93,37 @@ isEmptySchema (Schema _ ms) = null ms
 
 -- Server Generation -----------------------------------------------------------
 
-rpcModule :: TypeEnv -> [String] -> Interface -> Artifact
-rpcModule typeEnv ns iface =
+rpcModule :: [String] -> Interface -> Artifact
+rpcModule ns iface =
   artifactPath (foldr (\ p rest -> p ++ "/" ++ rest) "Rpc" ns) $
   artifactText (ifaceMod ++ ".hs") $
   prettyLazyText 80 $
-  genServer typeEnv ns iface ifaceMod
+  genServer ns iface ifaceMod
   where
   ifaceMod = ifModuleName iface
 
 
-genServer :: TypeEnv -> [String] -> Interface -> String -> Doc
-genServer typeEnv ns iface ifaceMod = stack $
+genServer :: [String] -> Interface -> String -> Doc
+genServer ns iface ifaceMod = stack $
   [ text "{-# LANGUAGE RecordWildCards #-}" | useManager ] ++
   [ text "{-# LANGUAGE OverloadedStrings #-}"
   , moduleHeader     ns ifaceMod
   , line
-  , importTypes      ns typeEnv
+  , importTypes      ns iface
   , importInterface  ns ifaceMod
   , line
   , text "import" <+> (ppModName (ns ++ ["Rpc","Base"]))
   , line
-  , webServerImports
+  , webServerImports hasConsumer
   , line
   , line
   , managerDefs
-  , runServer useManager iface input output
+  , runServer hasConsumer useManager iface input output
   ]
   where
-  (useManager,managerDefs) = managerDef iface input
+  hasConsumer = not (isEmptySchema (consumerSchema iface))
+
+  (useManager,managerDefs) = managerDef hasConsumer iface input
 
   (input,output) = queueTypes iface
 
@@ -132,14 +137,30 @@ moduleHeader ns m =
          ]
 
 
--- | Import all of the generated type modules from the type environment.
-importTypes :: [String] -> TypeEnv -> Doc
-importTypes ns (TypeEnv ts) = foldr importType empty ts
+-- | Import the type modules required by the interface.  Import hiding
+-- everything, as we just need the ToJSON/FromJSON instances.
+importTypes :: [String] -> Interface -> Doc
+importTypes ns iface = stack
+                     $ map (streamImport . importType) streams
+                    ++ map (typeImport   . importType) types
   where
-  prefix = dots (map text (ns ++ ["Types"]))
+  (streams,types) = partitionTypes iface
 
-  importType (_,t) rest =
-    (text "import" <+> (prefix *. text (typeModuleName t))) </> rest
+  streamImport ty = importDecl addNs ty
+  typeImport   ty = importDecl addNs ty <+> text "()"
+
+  prefix  = dots (map text (ns ++ ["Types"]))
+  addNs m = prefix <> char '.' <> text m
+
+
+-- | Separate the types that are used from a stream method, from those used
+-- in attribute methods.
+partitionTypes :: Interface -> ([Type],[Type])
+partitionTypes iface = go [] [] (interfaceMethods iface)
+  where
+  go s a []                           = (nub s, nub a) 
+  go s a ((_,StreamMethod _ ty):rest) = go (ty:s)     a  rest
+  go s a ((_,AttrMethod   _ ty):rest) = go     s  (ty:a) rest
 
 
 importInterface :: [String] -> String -> Doc
@@ -147,16 +168,17 @@ importInterface ns ifaceName =
   text "import" <+> (dots (map text (ns ++ ["Interface", ifaceName])))
 
 
-webServerImports :: Doc
-webServerImports  =
-  stack [ text "import qualified Snap.Core as Snap"
-        , text "import qualified Data.ByteString as S"
-        , text "import           Control.Concurrent (forkIO)"
-        , text "import           Control.Concurrent.STM"
-        , text "import           Control.Monad (msum,forever)"
-        , text "import           Control.Monad.IO.Class (liftIO)"
-        , text "import           Data.Aeson (encode,decode)"
-        ]
+webServerImports :: Bool -> Doc
+webServerImports hasConsumer = stack $
+  [ text "import           Control.Monad (msum)" | hasConsumer ] ++
+  [ text "import           Data.Aeson (decode)"  | hasConsumer ] ++
+  [ text "import qualified Snap.Core as Snap"
+  , text "import           Control.Concurrent (forkIO)"
+  , text "import           Control.Concurrent.STM"
+  , text "import           Control.Monad (forever)"
+  , text "import           Control.Monad.IO.Class (liftIO)"
+  , text "import           Data.Aeson (encode)"
+  ]
 
 
 type InputQueue  = Doc
@@ -175,12 +197,10 @@ queueTypes iface = (input,output)
   output = text "TQueue" <+> text cons
 
 
-runServer :: Bool -> Interface -> InputQueue -> OutputQueue -> Doc
-runServer useMgr iface input output =
+runServer :: Bool -> Bool -> Interface -> InputQueue -> OutputQueue -> Doc
+runServer hasConsumer useMgr iface input output =
   runServerSig hasConsumer input output </>
   runServerDef hasConsumer useMgr iface
-  where
-  hasConsumer = not (isEmptySchema (consumerSchema iface))
 
 
 runServerSig :: Bool -> InputQueue -> OutputQueue -> Doc
@@ -206,13 +226,15 @@ runServerDef hasConsumer useMgr iface =
 
   stmts = [ text "state <- mkState"                         | useMgr      ]
        ++ [ defInput                                                      ]
-       ++ [ text "_ <- forkIO (manager state input input')" | useMgr      ]
-       ++ [ text "conn <- newConn output input'"            | hasConsumer ]
+       ++ [ spread $ [ text "_ <- forkIO (manager state input" ]
+                  ++ [ text "input'" | hasConsumer ]
+                  ++ [ text ")" ]                           | useMgr      ]
+       ++ [ text "conn <- newConn output" <+> input'        | hasConsumer ]
        ++ [ text "runServer cfg $ Snap.route" </> routesDef               ]
 
-  defInput
-    | useMgr    = text "input' <- newTQueueIO"
-    | otherwise = text "let input' = input"
+  (input',defInput)
+    | hasConsumer && useMgr = (text "input'", text "input' <- newTQueueIO")
+    | otherwise             = (text "input", empty)
 
   routesDef = nest 2 (align (routes iface (text "state")))
 
@@ -287,13 +309,11 @@ writeAttr suffix msg = text "Snap.method Snap.POST $" <+> doStmts
 
 -- | Define everything associated with the manager, but only if there are stream
 -- values to manage.
-managerDef :: Interface -> InputQueue -> (Bool,Doc)
-managerDef iface input
+managerDef :: Bool -> Interface -> InputQueue -> (Bool,Doc)
+managerDef hasConsumer iface input
   | null streams = (False,empty)
   | otherwise    = (True,stack defs </> empty)
   where
-
-  hasConsumer = not (isEmptySchema (consumerSchema iface))
 
   streams = [ (name,ty) | (name,StreamMethod _ ty) <- allMethods iface ]
 
@@ -303,9 +323,13 @@ managerDef iface input
          , empty
          , mkStateDef streams
          , empty
-         , text "manager ::" <+> arrow [ stateType, input, input, text "IO ()" ]
-         , nest 2 $ text "manager state input filtered = forever $"
-                </> doStmts stmts
+         , text "manager ::" <+> arrow ([ stateType, input ] ++
+                                        [ input | hasConsumer ] ++
+                                        [ text "IO ()" ])
+         , nest 2 $ spread $
+           [ text "manager state input" ] ++
+           [ text "filtered" | hasConsumer ] ++
+           [ text "= forever $" </> doStmts stmts ]
          ]
 
   stmts = [ text "msg <- atomically (readTQueue input)"
@@ -364,9 +388,6 @@ arrow ts = spread (punctuate (text "->") ts)
 
 commas :: [Doc] -> [Doc]
 commas  = punctuate comma
-
-(*.) :: Doc -> Doc -> Doc
-a *. b = a <> dot <> b
 
 dots :: [Doc] -> Doc
 dots  = cat . punctuate dot
