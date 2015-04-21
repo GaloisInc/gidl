@@ -32,7 +32,7 @@ data Decl
 
 data MethodDecl
   = AttrDecl Perm Identifier
-  | StreamDecl Integer Identifier
+  | StreamDecl Identifier
     deriving (Eq, Show)
 
 unlessEmpty :: [a] -> (a -> String) -> Either String ()
@@ -106,9 +106,9 @@ toEnv decls = do
         toMethod (n, AttrDecl perm t) = do
           t' <- getType t
           return (n, AttrMethod perm t')
-        toMethod (n, StreamDecl rate t) = do
+        toMethod (n, StreamDecl t) = do
           t' <- getType t
-          return (n, StreamMethod rate t')
+          return (n, StreamMethod 0 t') -- XXX
 
         toInterface (InterfaceDecl n is ms) = do
           ms' <- mapM toMethod ms
@@ -251,7 +251,7 @@ tInterfaceMethod :: Parse (Identifier, MethodDecl)
 tInterfaceMethod e =
   fromPair tSymbol (asList go) e /?/ ("interface method " ++ seShow e)
   where go ["attr",   p, t] = AttrDecl   <$> tPermission p <*> tType t
-        go ["stream", n, t] = StreamDecl <$> tInteger n    <*> tType t
+        go ["stream", t]    = StreamDecl <$> tType t
         go (x:_) = throw ("unknown interface type: " ++ seShow x)
         go []    = throw "empty interface decl"
 
@@ -319,7 +319,7 @@ ppDecl (InterfaceDecl name parents methods) =
     ) where go (n, m) = L [ ident n, ppMethod m ]
 
 ppMethod :: MethodDecl -> WellFormedSExpr HaskLikeAtom
-ppMethod (StreamDecl rate name) = L [ "stream", int rate, ident name ]
+ppMethod (StreamDecl name)    = L [ "stream", ident name ]
 ppMethod (AttrDecl perm name) = L [ "attr", ppPerm perm, ident name ]
   where ppPerm Read      = "r"
         ppPerm Write     = "w"
