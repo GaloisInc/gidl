@@ -1,67 +1,85 @@
+
+-- An example gidl IDL.
+-- Line comments are haskell style.
+{- Block comments are haskell style, as well. -}
+
+-------------------------------------------------------------------------------
+-- Type language
+-------------------------------------------------------------------------------
+
+-- All types end with a _t suffix in gidl syntax. Code generators may elect to
+-- drop the _t suffix when generating type definitions.
+
+-- Newtype definitions create a distinct type by wrapping an existing atomic,
+-- enum, or newtype.
 (def-newtype time_micros_t sint64_t)
 
--- comments should be haskell style, because we're suing parsec's haskell lexer
-
--- enums default to 32 bit width if you don't really care
+-- Enums are pairs of names and integer values. Must be a one-to-one
+-- mapping: names are not repeated, values are not repeated.
+-- Enums default to 32 bit width if you don't really care.
+-- N.B. we should probably change it to default to the smallest
+-- width that fits the values the user declared.
 (def-enum mode_t
  (stabilize 0)
  (auto 1))
 
--- or you can specify a width
+-- The user can specify a bit width for enums with the
+-- following syntax. 8, 16, 32, 64 bit widths are valid.
 (def-enum (armed_t 8)
  (disarmed 0)
  (armed 1))
 
+-- Structures are a set of pairs of names and types. All
+-- names must be distinct. All types must be atomic, enum,
+-- or newtypes.
 (def-struct heartbeat_t
  (time time_micros_t)
  (armed armed_t))
 
-(def-newtype lat_t sint32_t)
-(def-newtype lon_t sint32_t)
-
--- Todo: allow attaching unit annotations to newtypes. The code generator will
--- provide the units as a human readable comment, and/or in some type/unit
--- system supported by the host language.
--- Todo: allow attaching predicates to newtypes. e.g., lon_t might have some
--- type (degrees * 10e-6), some predicate
--- (lambda (v) (and (gt v -180000000) (lte v 180000000)))
-
-(def-newtype meters_t float_t)
-
+-- Definitions may be out of order. Circular definitions
+-- are not permitted.
 (def-struct coordinate_t
  (lat lat_t)
  (lon lon_t)
  (alt meters_t))
+(def-newtype lat_t sint32_t)
+(def-newtype lon_t sint32_t)
+(def-newtype meters_t float_t)
 
+-- There is no way to extend (subtype) an existing structure, or compose
+-- structures within structures. However, names may be repeated.
 (def-struct timed_coord_t
   (lat lat_t)
   (lon lon_t)
   (alt meters_t)
   (time time_micros_t))
 
--- Todo: the following interface syntax and semantics are a strawman.
--- Interfaces have methods that are either streams or attrs.
--- attrs take a parameter for access control.
--- streams take a parameter for their default period in hz (none should default
--- to zero). they also implicitly define an attr $(steamname)-stream-rate,
--- which permits changing the stream rate at runtime.
+-------------------------------------------------------------------------------
+-- Interface language
+-------------------------------------------------------------------------------
 
+-- Here is an interface which defines a single stream named heartbeat.
 (def-interface vehicle_i ()
- (heartbeat (stream 10 heartbeat_t)))
+ (heartbeat (stream heartbeat_t)))
 
--- Interfaces implement java-style inheritance. No shadowing of inherited method
+-- Type definitions may be interspersed with interface definitions
+(def-enum light_mode_t
+  (off  0)
+  (blink_slow 1)
+  (blink_fast 2)
+  (on 3))
+
+-- Here is an interface which defines a single attribute. Attributes
+-- may be given read, write, or readwrite access.
+(def-interface light_i ()
+  (light_mode (attr readwrite light_mode_t)))
+
+-- Interfaces may be extended (subtyped). No shadowing of method
 -- names permitted.
-
-(def-interface controllable_vehicle_i (vehicle_i) -- Inherits from interface vehicle
+-- This interface extends the vehicle_i and light_i interfaces,
+-- and defines two additional attributes.
+(def-interface controllable_vehicle_i (vehicle_i light_i)
   (current_waypoint (attr read      coordinate_t))
   (next_waypoint    (attr readwrite timed_coord_t)))
 
--- The idea here is that, when negotiating a gidl connection, the client can
--- specify or negotiate what interface is supported.
--- this may be communicated by just sending the string name, or potentially by
--- sending the entire serialized schema. At very least, the client and server
--- should check agreement of their type schemas, probably by having the client
--- send a sha1-hash of the serialized type schema.
--- This allows us to specify various kinds of vehicles might exist without
--- repeating ourselves, and provides a way to
--- manage new functionality without breaking legacy code.
+
