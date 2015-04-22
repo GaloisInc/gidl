@@ -40,7 +40,7 @@ typeModule useAeson modulepath t =
   where
   imports = map (importDecl tm)
           $ nub
-          $ map (importType . PrimType)
+          $ map importType
           $ typeLeaves t
   tm mname = mconcat $ punctuate dot
                      $ map text (modulepath ++ [mname])
@@ -115,19 +115,19 @@ typeDecl t@(StructType _ ss) = stack
   [ text "data" <+> text tname <+> equals
   , indent 2 $ text tname
   , indent 4 $ encloseStack lbrace (rbrace <+> deriv) comma
-      [ text i <+> colon <> colon <+> text (typeHaskellType (PrimType st))
+      [ text i <+> colon <> colon <+> text (typeHaskellType st)
       | (i,st) <- ss ]
   , empty
   , text ("put" ++ tname) <+> colon <> colon <+> text "Putter" <+> text tname
   , text ("put" ++ tname) <+> text tname <> text "{..}" <+> equals <+> text "do"
   , indent 2 $ stack
-      [ primTypePutter st <+> text i
+      [ typePutter st <+> text i
       | (i,st) <- ss ]
   , empty
   , text ("get" ++ tname) <+> colon <> colon <+> text "Get" <+> text tname
   , text ("get" ++ tname) <+> equals <+> text "do"
   , indent 2 $ stack $
-      [ text i <+> text "<-" <+> primTypeGetter st
+      [ text i <+> text "<-" <+> typeGetter st
       | (i,st) <- ss ] ++
       [ text "return" <+> text tname <> text "{..}" ]
   , empty
@@ -222,6 +222,10 @@ typeDecl t@(PrimType (EnumType _ s es)) = stack
 
 typeDecl t = error ("typeDecl: cannot create Haskell decl for type " ++ show t)
 
+typePutter :: Type -> Doc
+typePutter (PrimType p) = primTypePutter p
+typePutter struct = text "put" <> text (typeModuleName struct)
+
 primTypePutter :: PrimType -> Doc
 primTypePutter (Newtype tn _) = text "put" <> text (userTypeModuleName tn)
 primTypePutter (EnumType tn _ _) = text "put" <> text (userTypeModuleName tn)
@@ -233,6 +237,11 @@ primTypePutter (AtomType (AtomWord Bits64)) = text "putWord64be"
 primTypePutter (AtomType AtomFloat) = text "putFloat32be"
 primTypePutter (AtomType AtomDouble) = text "putFloat64be"
 primTypePutter VoidType = text "put"
+
+
+typeGetter :: Type -> Doc
+typeGetter (PrimType p) = primTypeGetter p
+typeGetter struct = text "get" <> text (typeModuleName struct)
 
 primTypeGetter :: PrimType -> Doc
 primTypeGetter (Newtype tn _) = text "get" <> text (userTypeModuleName tn)

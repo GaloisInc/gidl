@@ -26,7 +26,7 @@ the following primitives:
     - Wraps an existing atomic or enum type with a new type
 - User-defined Structures:
     - Set of named fields. Corresponds to a record or a C struct.
-    - All fields are atomic, enum, or newtypes.
+    - Fields may be of any other user-defined type
 
 ### Interfaces
 

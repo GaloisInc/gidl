@@ -140,12 +140,6 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
   accessorName n = userEnumValueName n ++ schemaName
   typeName = interfaceName ++ schemaName
 
-typeIvoryArea :: Type -> Doc
-typeIvoryArea t@(StructType _ _) = parens (text (typeIvoryType t))
-typeIvoryArea   (PrimType VoidType) = error "should not take typeIvoryArea of VoidType"
-typeIvoryArea t@(PrimType (AtomType _)) = parens (text "Stored" <+> text (typeIvoryType t))
-typeIvoryArea t@(PrimType _) = parens (text "Stored" <+> text (typeIvoryType t) <> dot <> text (typeIvoryType t))
-
 parserName :: String -> String
 parserName tn = userEnumValueName tn ++ "Parser"
 senderName :: String -> String

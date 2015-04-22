@@ -46,12 +46,9 @@
 (def-newtype lon_t sint32_t)
 (def-newtype meters_t float_t)
 
--- There is no way to extend (subtype) an existing structure, or compose
--- structures within structures. However, names may be repeated.
+-- Structures may contain structures.
 (def-struct timed_coord_t
-  (lat lat_t)
-  (lon lon_t)
-  (alt meters_t)
+  (coord coordinate_t)
   (time time_micros_t))
 
 -------------------------------------------------------------------------------

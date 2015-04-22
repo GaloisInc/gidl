@@ -104,7 +104,7 @@ toEnv decls = do
                   ++ "' repeated in declaration of 'Enum " ++ n ++ "'")
           return (n, PrimType (EnumType n s ts))
         toType (StructDecl n ss) = local (n:) $ do
-          ps <- mapM (getPrimType . snd) ss
+          ps <- mapM (getType . snd) ss
           return (n, StructType n (zip (map fst ss) ps))
         toType _ = error "[unreachable]"
 

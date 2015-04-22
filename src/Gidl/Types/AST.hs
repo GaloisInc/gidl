@@ -11,7 +11,7 @@ emptyTypeEnv :: TypeEnv
 emptyTypeEnv = TypeEnv []
 
 data Type
-  = StructType String [(Identifier, PrimType)]
+  = StructType String [(Identifier, Type)]
   | PrimType PrimType
   deriving (Eq, Show)
 

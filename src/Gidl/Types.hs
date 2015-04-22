@@ -27,14 +27,14 @@ insertType tn t e@(TypeEnv te) = case lookupTypeName tn e of
   Nothing -> TypeEnv ((tn,t):te)
   Just _ -> error ("insertType invariant broken: type " ++ tn ++ " already exists")
 
-typeLeaves :: Type -> [PrimType]
+typeLeaves :: Type -> [Type]
 typeLeaves (StructType _ s) = nub (map snd s)
-typeLeaves (PrimType (Newtype _ tn)) = [tn]
+typeLeaves (PrimType (Newtype _ tn)) = [PrimType tn]
 typeLeaves _ = []
 
 
 sizeOf :: Type -> Integer
-sizeOf (StructType _ s) = sum [ sizeOf (PrimType tr) | (_, tr) <- s ]
+sizeOf (StructType _ s) = sum [ sizeOf tr | (_, tr) <- s ]
 sizeOf (PrimType (Newtype _ tr)) = sizeOf (PrimType tr)
 sizeOf (PrimType (EnumType _ bs _)) = bitsSize bs
 sizeOf (PrimType (AtomType (AtomInt bs))) = bitsSize bs

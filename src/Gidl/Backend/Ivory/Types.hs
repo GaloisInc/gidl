@@ -60,7 +60,7 @@ typeModule modulepath t =
   where
   imports = map (importDecl (typeModulePath modulepath))
           $ nub
-          $ map (importType . PrimType)
+          $ map importType
           $ typeLeaves t
 
 typeModulePath :: [String] -> String -> Doc
@@ -73,6 +73,16 @@ typeImportedIvoryType t@(PrimType (Newtype tn _)) =
 typeImportedIvoryType t@(PrimType (EnumType tn _ _)) =
   userTypeModuleName tn ++ "." ++ typeIvoryType t
 typeImportedIvoryType t = typeIvoryType t
+
+typeIvoryArea :: Type -> Doc
+typeIvoryArea t@(StructType _ _) = parens (text (typeIvoryType t))
+typeIvoryArea   (PrimType VoidType) = error "should not take typeIvoryArea of VoidType"
+typeIvoryArea t@(PrimType (AtomType _)) = parens (text "Stored" <+> text (typeIvoryType t))
+typeIvoryArea t@(PrimType _) = parens (text "Stored" <+> text (typeIvoryType t) <> dot <> text (typeIvoryType t))
+
+typeIvoryAreaStructQQ :: Type -> Doc
+typeIvoryAreaStructQQ (StructType n _) = text "Struct" <+> text (userTypeStructName n)
+typeIvoryAreaStructQQ t = typeIvoryArea t
 
 typeIvoryType :: Type -> String
 typeIvoryType (StructType tn _) = "Struct \"" ++ userTypeStructName tn ++ "\""
@@ -139,7 +149,7 @@ typeDecl t@(StructType tname ss) = stack
   , text "struct" <+> structname
   , indent 2 $ encloseStack lbrace rbrace semi
       [ text i <+> colon <> colon
-       <+> text "Stored" <+> text (typeImportedIvoryType (PrimType st))
+       <+> typeIvoryAreaStructQQ st
       | (i,st) <- ss ]
   , text "|]"
   , empty
@@ -162,7 +172,7 @@ typeDecl t@(StructType tname ss) = stack
       , text "wrappedPackMod" <+> packRep
       ] ++
       [ text "depend" <+> text (qualifiedIvoryPackageName dt)
-      | dt <- fmap PrimType (typeLeaves t)
+      | dt <- typeLeaves t
       , isUserDefined dt
       ]
 
@@ -197,7 +207,7 @@ typeDecl t@(PrimType (Newtype tname n)) = stack
       , text "wrappedPackMod" <+> packRep
       ] ++
       [ text "depend" <+> text (qualifiedIvoryPackageName dt)
-      | dt <- fmap PrimType (typeLeaves t)
+      | dt <- typeLeaves t
       , isUserDefined dt
       ]
   ]

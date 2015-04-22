@@ -9,8 +9,7 @@ import Gidl.Types
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
-import Gidl.Backend.Ivory.Schema ( ifModuleName, parserName, senderName
-                                 , typeIvoryArea)
+import Gidl.Backend.Ivory.Schema (ifModuleName, parserName, senderName)
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 

@@ -8,7 +8,7 @@ import Data.List (intercalate, nub)
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
-import Gidl.Backend.Ivory.Schema (ifModuleName, typeIvoryArea)
+import Gidl.Backend.Ivory.Schema (ifModuleName)
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
