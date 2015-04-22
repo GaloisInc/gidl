@@ -9,7 +9,8 @@ import Gidl.Types
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
-import Gidl.Backend.Ivory.Schema (ifModuleName, parserName, senderName)
+import Gidl.Backend.Ivory.Schema ( ifModuleName, parserName, senderName
+                                 , typeIvoryArea)
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
@@ -68,7 +69,7 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
             PrimType VoidType -> accessorName n <+> colon <> colon
                 <+> text "ChanOutput (Stored IBool)"
             _ -> accessorName n <+> colon <> colon
-                <+> text "ChanOutput" <+> parens (text (typeIvoryType t))
+                <+> text "ChanOutput" <+> typeIvoryArea t
         | (_, (Message n t)) <- schema
         ]
     , empty

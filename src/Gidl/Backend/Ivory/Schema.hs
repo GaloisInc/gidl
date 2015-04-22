@@ -65,8 +65,8 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
             PrimType VoidType -> text (accessorName n) <+> colon <> colon
                 <+> text "(forall s r b . Ivory ('Effects r b (Scope s)) IBool)"
             _ -> text (accessorName n) <+> colon <> colon
-                  <+> parens (text "forall s r b s' . ConstRef s'" 
-                    <+> parens (text (typeIvoryType t))
+                  <+> parens (text "forall s r b s' . ConstRef s'"
+                    <+> typeIvoryArea t
                     <+> text "-> Ivory ('Effects r b (Scope s)) IBool")
         | (_, (Message n t)) <- schema
         ]
@@ -120,7 +120,7 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
             _ -> text (accessorName n) <+> equals <+> text "\\m -> do" </> indent 4
                   (stack [ text "o <- deref offs"
                          , text "let required_size = fromInteger (packSize (packRep :: PackRep"
-                             <+> parens (text (typeIvoryType t)) <+> text ")"
+                             <+> typeIvoryArea t <+> text ")"
                              <+> text "+ packSize (packRep :: PackRep (Stored Uint32)))"
                          , text "    sufficient_space = (o + required_size) <? arrayLen arr"
                          , text "when sufficient_space $ do"
@@ -139,6 +139,12 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
   constructor = text typeName
   accessorName n = userEnumValueName n ++ schemaName
   typeName = interfaceName ++ schemaName
+
+typeIvoryArea :: Type -> Doc
+typeIvoryArea t@(StructType _ _) = parens (text (typeIvoryType t))
+typeIvoryArea   (PrimType VoidType) = error "should not take typeIvoryArea of VoidType"
+typeIvoryArea t@(PrimType (AtomType _)) = parens (text "Stored" <+> text (typeIvoryType t))
+typeIvoryArea t@(PrimType _) = parens (text "Stored" <+> text (typeIvoryType t) <> dot <> text (typeIvoryType t))
 
 parserName :: String -> String
 parserName tn = userEnumValueName tn ++ "Parser"

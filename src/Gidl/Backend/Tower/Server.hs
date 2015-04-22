@@ -3,12 +3,12 @@ module Gidl.Backend.Tower.Server where
 
 
 import Data.Monoid
-import Data.List (intercalate)
+import Data.List (intercalate, nub)
 
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
-import Gidl.Backend.Ivory.Schema (ifModuleName)
+import Gidl.Backend.Ivory.Schema (ifModuleName, typeIvoryArea)
 import Ivory.Artifact
 import Text.PrettyPrint.Mainland
 
@@ -69,6 +69,7 @@ serverModule modulepath i =
   rootpath = reverse . drop 2 . reverse
   modAt path = mconcat (punctuate dot (map text path))
   im mname = modAt (modulepath ++ [ifModuleName i, mname])
+  tm mname = modAt (rootpath modulepath ++ ["Ivory","Types", mname])
 
   imports =
     [ text "import" <+> modAt (rootpath modulepath ++ ["Tower", "Attr"])
@@ -76,7 +77,12 @@ serverModule modulepath i =
     , text "import" <+> im "Consumer"
     , text "import Ivory.Language"
     , text "import Ivory.Tower"
-    ]
+    ] ++ typeimports
+
+  typeimports = map (importDecl tm)
+              $ nub
+              $ map importType
+              $ interfaceTypes i
 
 
 attrsDataType :: Interface -> Doc
@@ -87,7 +93,7 @@ attrsDataType i = text "data" <+> constructor <+> text "(p :: Area * -> *) ="
   constructor = text (ifModuleName i) <> text "Attrs"
   body = encloseStack lbrace rbrace comma
     [ text n <+> colon <> colon <+> text "p"
-                 <+> parens (text (typeIvoryType t))
+                 <+> typeIvoryArea t
     | (aname, AttrMethod _ t)  <- interfaceMethods i
     , let n = userEnumValueName aname
     ]
