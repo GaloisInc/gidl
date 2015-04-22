@@ -59,7 +59,7 @@ tower-backend-test-clean:
 
 rpc-backend-test:
 	cabal copy
-	cabal run gidl -- -b rpc \
+	cabal run gidl -- -b haskell-rpc \
 		--debug \
 		-i tests/example.idl \
 		-o tests/gidl-rpc-backend-test \
