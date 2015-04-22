@@ -35,7 +35,7 @@ rpcBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
 rpcBackend (TypeEnv te) (InterfaceEnv ie) pkgName nsStr =
     cabalFileArtifact (defaultCabalFile pkgName modules buildDeps)
   : artifactCabalFile P.getDataDir "support/rpc/Makefile"
-  : map (artifactPath "src") (rpcBaseModule namespace : sourceMods)
+  : map (artifactPath "src") sourceMods
 
   where
 
@@ -46,7 +46,7 @@ rpcBackend (TypeEnv te) (InterfaceEnv ie) pkgName nsStr =
 
   modules    = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
 
-  sourceMods = tmods ++ imods
+  sourceMods = tmods ++ imods ++ [rpcBaseModule namespace]
 
   tmods      = [ typeModule True (namespace ++ ["Types"]) t
                | (_tn, t) <- te

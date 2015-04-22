@@ -67,13 +67,13 @@ initialOpts = Opts
 
 setBackend :: String -> OptParser Opts
 setBackend b = case map toUpper b of
-  "HASKELL" -> success (\o -> o { backend = HaskellBackend })
-  "IVORY"   -> success (\o -> o { backend = IvoryBackend })
-  "TOWER"   -> success (\o -> o { backend = TowerBackend })
-  "RPC"     -> success (\o -> o { backend = RpcBackend })
-  _         -> invalid ("\"" ++ b ++ "\" is not a valid backend.\n"
-                          ++ "Supported backends: haskell, ivory, tower")
-
+  "HASKELL"     -> success (\o -> o { backend = HaskellBackend })
+  "IVORY"       -> success (\o -> o { backend = IvoryBackend })
+  "TOWER"       -> success (\o -> o { backend = TowerBackend })
+  "HASKELL-RPC" -> success (\o -> o { backend = RpcBackend })
+  _             -> invalid e
+  where e = "\"" ++ b ++ "\" is not a valid backend.\n"
+          ++ "Supported backends: haskell, ivory, tower, haskell-rpc"
 setIdlPath :: String -> OptParser Opts
 setIdlPath p = success (\o -> o { idlpath = p })
 
