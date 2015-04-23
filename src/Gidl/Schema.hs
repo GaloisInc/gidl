@@ -33,8 +33,8 @@ producerMessages :: (MethodName,Method) -> [Message]
 producerMessages (streamname, (StreamMethod _ tr)) =
   [ Message streamname tr ]
 producerMessages (attrname, (AttrMethod perm tr)) =
-  [ setRequestMessage attrname tr | writable perm ] ++
-  [ getRequestMessage attrname tr | readable perm ]
+  [ setResponseMessage attrname tr | writable perm ] ++
+  [ getResponseMessage attrname tr | readable perm ]
 
 consumerSchema :: Interface -> Schema
 consumerSchema ir = Schema "Consumer" [(mkMsgId m, m) | m <- messages ]
@@ -44,8 +44,8 @@ consumerSchema ir = Schema "Consumer" [(mkMsgId m, m) | m <- messages ]
 consumerMessages :: (MethodName,Method) -> [Message]
 consumerMessages (_, (StreamMethod _ _)) = [] -- XXX eventaully add set rate?
 consumerMessages (attrname, (AttrMethod perm tr)) =
-  [ setResponseMessage attrname tr | writable perm ] ++
-  [ getResponseMessage attrname tr | readable perm ]
+  [ setRequestMessage attrname tr | writable perm ] ++
+  [ getRequestMessage attrname tr | readable perm ]
 
 readable :: Perm -> Bool
 readable Read = True
