@@ -41,10 +41,12 @@ interfaceModule useAeson modulepath i =
                      $ map text (typepath modulepath ++ ["Types", mname])
     where typepath = reverse . drop 1 . reverse
 
-  typeimports = map (importDecl tm)
+  typeimports = map (\a -> importDecl tm a </> qualifiedImportDecl tm a)
               $ nub
               $ map importType
+              $ (++ [sequence_num_t])
               $ interfaceTypes i
+
   extraimports = [ text "import Data.Serialize"
                  , text "import Data.Typeable"
                  , text "import Data.Data"
@@ -57,7 +59,7 @@ schemaDoc :: Bool -> String -> Schema -> Doc
 schemaDoc _ interfaceName (Schema schemaName [])     =
     text "-- Cannot define" <+> text schemaName  <+> text "schema for"
         <+> text interfaceName <+> text "interface: schema is empty"
-schemaDoc useAeson interfaceName (Schema schemaName schema) = stack $
+schemaDoc useAeson interfaceName s@(Schema schemaName schema) = stack $
     [ text "-- Define" <+> text schemaName  <+> text "schema for"
         <+> text interfaceName <+> text "interface"
     , text "data" <+> text typeName
@@ -108,7 +110,8 @@ schemaDoc useAeson interfaceName (Schema schemaName schema) = stack $
     , empty
     ] ++
     [ toJSONInstance   typeName | useAeson ] ++
-    [ fromJSONInstance typeName | useAeson ]
+    [ fromJSONInstance typeName | useAeson ] ++
+    [ seqnumGetter typeName s ]
   where
   constructorName n = userTypeModuleName n ++ schemaName
   deriv = text "deriving (Eq, Show, Data, Typeable, Generic)"
@@ -127,4 +130,31 @@ ifModuleName (Interface iname _ _) = aux iname
   u_to_camel (a:as) = a : u_to_camel as
   u_to_camel [] = []
 
+seqnumGetter :: String -> Schema -> Doc
+seqnumGetter _        (Schema _ []) = empty
+seqnumGetter typeName (Schema schemaName ms) = stack
+  [ text "seqNumGetter" <> text typeName
+                        <+> colon <> colon <+> text typeName
+                        <+> text "->" <+> text "SequenceNum"
+  , stack [ text "seqNumGetter" <> text typeName 
+            <+> parens (text (constructorName mname) <+> text "_a")
+            <+> equals <+> aux mtype
+          | (_,Message mname mtype) <- ms
+          ]
+  ]
+  where
+  constructorName n = userTypeModuleName n ++ schemaName
+  aux mtype
+    | isSeqNum mtype = text "_a"
+    | isSeqNumbered mtype = text (userTypeModuleName (structTypeName mtype))
+                            <> dot <> text "seqnum" <+> text "_a"
+    | otherwise = text "error \"impossible: should not be asking for"
+                <+> text "sequence number of non-attribute\""
+
+  isSeqNum a = a == sequence_num_t
+  -- XXX the following is ugly and i know it:
+  isSeqNumbered (StructType _ [("seqnum",_),("val",_)]) = True
+  isSeqNumbered _ = False
+  structTypeName (StructType a _) = a
+  structTypeName _ = error "impossible"
 

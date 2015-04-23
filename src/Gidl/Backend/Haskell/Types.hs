@@ -286,6 +286,14 @@ importDecl mkpath (UserType t) =
   text "import" <+> mkpath (userTypeModuleName t)
 importDecl _ NoImport = empty
 
+qualifiedImportDecl :: (String -> Doc) -> ImportType -> Doc
+qualifiedImportDecl _ (LibraryType p) =
+  text "import" <+> text p
+qualifiedImportDecl mkpath (UserType t) =
+  text "import qualified" <+> mkpath (userTypeModuleName t) <+> text "as"
+   <+> text (userTypeModuleName t)
+qualifiedImportDecl _ NoImport = empty
+
 
 encloseStack :: Doc -> Doc -> Doc -> [Doc] -> Doc
 encloseStack l r p ds = case ds of

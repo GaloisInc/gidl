@@ -8,14 +8,14 @@ import Gidl.Backend.Cabal (cabalFileArtifact,defaultCabalFile,filePathToPackage)
 import Gidl.Backend.Haskell.Interface (interfaceModule,ifModuleName)
 import Gidl.Backend.Haskell.Types
            (typeModule,isUserDefined,typeModuleName,userTypeModuleName
-           ,importType,importDecl)
+           ,importType,importDecl, qualifiedImportDecl)
 import Gidl.Interface
            (Interface(..),MethodName,Method(..),Perm(..)
            ,interfaceMethods)
 import Gidl.Schema
            (Schema(..),producerSchema,consumerSchema,Message(..)
            ,consumerMessages,interfaceTypes)
-import Gidl.Types (Type)
+import Gidl.Types (Type(..))
 
 import Data.Char (isSpace)
 import Data.List (nub)
@@ -42,7 +42,7 @@ rpcBackend iis pkgName nsStr =
   namespace  = strToNs nsStr
 
   buildDeps  = [ "cereal", "QuickCheck", "snap-core", "snap-server", "stm"
-               , "aeson", "transformers" ]
+               , "aeson", "transformers", "containers" ]
 
   modules    = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
 
@@ -108,13 +108,15 @@ genServer :: [String] -> Interface -> String -> Doc
 genServer ns iface ifaceMod = stack $
   [ text "{-# LANGUAGE RecordWildCards #-}" | useManager ] ++
   [ text "{-# LANGUAGE OverloadedStrings #-}"
+  , text "{-# OPTIONS_GHC -fno-warn-unused-imports #-}"
   , moduleHeader     ns ifaceMod
   , line
   , importTypes      ns iface
   , importInterface  ns ifaceMod
   , line
   , text "import" <+> (ppModName (ns ++ ["Rpc","Base"]))
-  , line
+  ] ++
+  [ line
   , webServerImports hasConsumer
   , line
   , line
@@ -145,10 +147,12 @@ importTypes ns iface = stack
                      $ map (streamImport . importType) streams
                     ++ map (typeImport   . importType) types
   where
-  (streams,types) = partitionTypes iface
+  (streams,itypes) = partitionTypes iface
+
+  types = itypes ++ interfaceTypes iface
 
   streamImport ty = importDecl addNs ty
-  typeImport   ty = importDecl addNs ty <+> text "()"
+  typeImport   ty = qualifiedImportDecl addNs ty
 
   prefix  = dots (map text (ns ++ ["Types"]))
   addNs m = prefix <> char '.' <> text m
@@ -230,7 +234,8 @@ runServerDef hasConsumer useMgr iface =
        ++ [ spread $ [ text "_ <- forkIO (manager state input" ]
                   ++ [ text "input'" | hasConsumer ]
                   ++ [ text ")" ]                           | useMgr      ]
-       ++ [ text "conn <- newConn output" <+> input'        | hasConsumer ]
+       ++ [ text "conn <- newConn output" <+> input'
+                  <+> seqNumGetter                          | hasConsumer ]
        ++ [ text "runServer cfg $ Snap.route" </> routesDef               ]
 
   (input',defInput)
@@ -239,6 +244,9 @@ runServerDef hasConsumer useMgr iface =
 
   routesDef = nest 2 (align (routes iface (text "state")))
 
+  seqNumGetter = parens (text "SequenceNum.unSequenceNum ."
+      <+> text "seqNumGetter" <> text (ifModuleName iface) <> text prodName)
+  Schema prodName _ = producerSchema iface
 
 -- | Define one route for each interface member
 routes :: Interface -> Doc -> Doc
@@ -289,8 +297,10 @@ constrName suffix (Message n _) = userTypeModuleName n ++ suffix
 
 readAttr :: String -> Message -> Doc
 readAttr suffix msg = text "Snap.method Snap.GET $" <+> doStmts
-  [ text "resp <- liftIO $ sendRequest conn $" <+>
-                   text (constrName suffix msg) <+> text "()"
+  [ text "resp <- liftIO $ sendRequest conn $"
+                   <+> text (constrName suffix msg)
+                   <+> dot <+> text "SequenceNum.SequenceNum"
+
   , text "Snap.writeLBS (encode resp)"
   ]
 
@@ -298,12 +308,19 @@ writeAttr :: String -> Message -> Doc
 writeAttr suffix msg = text "Snap.method Snap.POST $" <+> doStmts
   [ text "bytes <- Snap.readRequestBody 32768"
   , text "case decode bytes of" </>
-      text "Just req -> liftIO $ sendRequest_ conn $" <+>
-                            text con <+> text "req" </>
+      text "Just req -> liftIO $" <+> doStmts
+        [ text "_ <- sendRequest conn $ \\ snum ->"
+                    <+> text con
+                    <+> parens (text (userTypeModuleName sname)
+                                <> dot <> text (userTypeModuleName sname)
+                                <+> text "(SequenceNum.SequenceNum snum)" <+> text "req")
+        , text "return ()"
+        ] </>
       text "Nothing  -> Snap.modifyResponse $ Snap.setResponseCode 400"
   ]
   where
   con = constrName suffix msg
+  (Message _ (StructType sname _)) = msg
 
 
 -- The stream manager ----------------------------------------------------------
