@@ -6,7 +6,6 @@ import Data.Monoid
 import Data.List (intercalate, nub)
 import Data.Char (toUpper)
 
-import Gidl.Types hiding (typeName)
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
@@ -61,13 +60,10 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     , empty
     , text "data" <+> constructor <+> equals <+> constructor
     , indent 2 $ encloseStack lbrace rbrace comma
-        [ case t of
-            PrimType VoidType -> text (accessorName n) <+> colon <> colon
-                <+> text "(forall s r b . Ivory ('Effects r b (Scope s)) IBool)"
-            _ -> text (accessorName n) <+> colon <> colon
-                  <+> parens (text "forall s r b s' . ConstRef s'"
-                    <+> typeIvoryArea t
-                    <+> text "-> Ivory ('Effects r b (Scope s)) IBool")
+        [ text (accessorName n) <+> colon <> colon
+           <+> parens (text "forall s r b s' . ConstRef s'"
+             <+> typeIvoryArea t
+             <+> text "-> Ivory ('Effects r b (Scope s)) IBool")
         | (_, (Message n t)) <- schema
         ]
     , empty
@@ -84,12 +80,10 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
         [ text "unpackWithCallback arr offs $ \\tag_ref -> do"
         , indent 2 $ text "(tag :: Uint32) <- deref tag_ref"
         , indent 2 $ text "cond" <+> encloseStack lbracket rbracket comma
-           [ parens (text "tag ==?" <+> ppr h) <+> text "==>" <+> unpackK
-           | (h, Message n t) <- schema
-           , let k = text (accessorName n) <+> text "iface"
-           , let unpackK = case t of
-                   PrimType VoidType -> k
-                   _ -> text "unpackWithCallback arr offs" <+> parens k
+           [ parens (text "tag ==?" <+> ppr h) <+> text "==>"
+            <+> text "unpackWithCallback arr offs"
+            <+> parens (text (accessorName n) <+> text "iface")
+           | (h, Message n _) <- schema
            ]
         ]
     , empty
@@ -103,35 +97,21 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     , text (senderName typeName) <+> text "arr offs" <+> equals
         <+> constructor
     , indent 2 $ encloseStack lbrace rbrace comma
-        [ case t of
-            PrimType VoidType -> text (accessorName n) <+> equals <+> text "do" </> indent 4
-                  (stack [ text "o <- deref offs"
-                         , text "let required_size = fromInteger (packSize (packRep :: PackRep (Stored Uint32)))"
-                         , text "    sufficient_space = (o + required_size) <? arrayLen arr"
-                         , text "when sufficient_space $ do"
-                         , indent 2 $ stack
-                             [ text "ident <- local (ival (" <+> ppr h <+> text ":: Uint32))"
-                             , text "packInto arr o (constRef ident)"
-                             , text "offs += required_size"
-                             ]
-                         , text "return sufficient_space"
-                         ])
-
-            _ -> text (accessorName n) <+> equals <+> text "\\m -> do" </> indent 4
-                  (stack [ text "o <- deref offs"
-                         , text "let required_size = fromInteger (packSize (packRep :: PackRep"
-                             <+> typeIvoryArea t <+> text ")"
-                             <+> text "+ packSize (packRep :: PackRep (Stored Uint32)))"
-                         , text "    sufficient_space = (o + required_size) <? arrayLen arr"
-                         , text "when sufficient_space $ do"
-                         , indent 2 $ stack
-                             [ text "ident <- local (ival (" <+> ppr h <+> text ":: Uint32))"
-                             , text "packInto arr o (constRef ident)"
-                             , text "packInto arr (o + fromInteger (packSize (packRep :: PackRep (Stored Uint32)))) m"
-                             , text "offs += required_size"
-                             ]
-                         , text "return sufficient_space"
-                         ])
+        [ text (accessorName n) <+> equals <+> text "\\m -> do" </> indent 4
+            (stack [ text "o <- deref offs"
+                   , text "let required_size = fromInteger (packSize (packRep :: PackRep"
+                       <+> typeIvoryArea t <+> text ")"
+                       <+> text "+ packSize (packRep :: PackRep (Stored Uint32)))"
+                   , text "    sufficient_space = (o + required_size) <? arrayLen arr"
+                   , text "when sufficient_space $ do"
+                   , indent 2 $ stack
+                       [ text "ident <- local (ival (" <+> ppr h <+> text ":: Uint32))"
+                       , text "packInto arr o (constRef ident)"
+                       , text "packInto arr (o + fromInteger (packSize (packRep :: PackRep (Stored Uint32)))) m"
+                       , text "offs += required_size"
+                       ]
+                   , text "return sufficient_space"
+                   ])
         | (h, (Message n t)) <- schema
         ]
     ]

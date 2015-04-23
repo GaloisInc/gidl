@@ -19,7 +19,6 @@ data PrimType
   = Newtype  String PrimType
   | EnumType String Bits [(Identifier, Integer)]
   | AtomType Atom
-  | VoidType
   deriving (Eq, Show)
 
 data Atom

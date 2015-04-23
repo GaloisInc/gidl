@@ -5,7 +5,6 @@ module Gidl.Backend.Tower.Schema where
 import Data.Monoid
 import Data.List (intercalate, nub)
 
-import Gidl.Types hiding (typeName)
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
@@ -64,11 +63,8 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     , empty
     , text "data" <+> constructor<+> equals <+> constructor
     , indent 2 $ encloseStack lbrace rbrace comma
-        [ case t of
-            PrimType VoidType -> accessorName n <+> colon <> colon
-                <+> text "ChanOutput (Stored IBool)"
-            _ -> accessorName n <+> colon <> colon
-                <+> text "ChanOutput" <+> typeIvoryArea t
+        [ accessorName n <+> colon <> colon
+           <+> text "ChanOutput" <+> typeIvoryArea t
         | (_, (Message n t)) <- schema
         ]
     , empty
@@ -99,15 +95,10 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
                     , text "_ <- I." <> text (parserName typeName)
                         <+> text "f offs $ I." <> constructor
                     , indent 2 $ encloseStack lbrace rbrace comma
-                        [ case t of
-                            PrimType VoidType ->
-                                 text "I." <> accessorName n <+> equals
-                                  <+> text "emitV" <+> emitterName n
-                                  <+> text "true >> return true"
-                            _ -> text "I." <> accessorName n <+> equals
-                                  <+> text "\\v -> emit" <+> emitterName n
-                                  <+> text "v >> return true"
-                        | (_, Message n t) <- schema
+                        [ text "I." <> accessorName n <+> equals
+                            <+> text "\\v -> emit" <+> emitterName n
+                            <+> text "v >> return true"
+                        | (_, Message n _) <- schema
                         ]
                     , text "return ()"
                     ]
@@ -136,9 +127,9 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
         , indent 2 $ stack
             [ text "handler" <+> parens (accessorName n <+> text "a")
                 <+> dquotes (accessorName n) <+> text "$ do"
-                </> indent 2 (parseEmitBody n t)
+                </> indent 2 (parseEmitBody n)
                 </> empty
-            | (_, Message n t) <- schema
+            | (_, Message n _) <- schema
             ]
         , text "return (snd frame_ch)"
         ]
@@ -151,19 +142,7 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
   chanName s = text "ch_" <> text s
   emitterName s = text "emitter_" <> text s
 
-  parseEmitBody n (PrimType VoidType) = stack
-    [ text "e <- emitter (fst frame_ch) 1"
-    , text "callback $ \\_ -> do"
-    , indent 2 $ stack
-        [ text "f <- local izero"
-        , text "o <- local izero"
-        , text "ok <-" <+> text "I." <> accessorName n
-            <+> parens (text "I." <> text (senderName typeName)
-                        <+> text "f o")
-        , text "ifte_ ok (emit e (constRef f)) (return ())"
-        ]
-    ]
-  parseEmitBody n _ = stack
+  parseEmitBody n = stack
     [ text "e <- emitter (fst frame_ch) 1"
     , text "callback $ \\w -> do"
     , indent 2 $ stack

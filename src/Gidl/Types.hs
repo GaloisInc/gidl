@@ -29,7 +29,6 @@ typeName :: Type -> TypeName
 typeName (StructType n _) = n
 typeName (PrimType (EnumType n _ _)) = n
 typeName (PrimType (Newtype n _)) = n
-typeName (PrimType VoidType) = error "XXX"
 typeName t@(PrimType (AtomType _)) =
   let TypeEnv bte = baseTypeEnv in
   case lookup t (map swap bte) of
@@ -57,7 +56,6 @@ sizeOf (PrimType (AtomType (AtomInt bs))) = bitsSize bs
 sizeOf (PrimType (AtomType (AtomWord bs))) = bitsSize bs
 sizeOf (PrimType (AtomType AtomFloat)) = 4
 sizeOf (PrimType (AtomType AtomDouble)) = 8
-sizeOf (PrimType VoidType) = 0
 
 bitsSize :: Bits -> Integer
 bitsSize Bits8  = 1

@@ -76,7 +76,6 @@ typeImportedIvoryType t = typeIvoryType t
 
 typeIvoryArea :: Type -> Doc
 typeIvoryArea t@(StructType _ _) = parens (text (typeIvoryType t))
-typeIvoryArea   (PrimType VoidType) = error "should not take typeIvoryArea of VoidType"
 typeIvoryArea t@(PrimType (AtomType _)) = parens (text "Stored" <+> text (typeIvoryType t))
 typeIvoryArea t@(PrimType _) = parens (text "Stored" <+> text (typeIvoryType t) <> dot <> text (typeIvoryType t))
 
@@ -99,14 +98,12 @@ typeIvoryType (PrimType (AtomType a)) = case a of
   AtomWord Bits64 -> "Uint64"
   AtomFloat -> "IFloat"
   AtomDouble -> "IDouble"
-typeIvoryType (PrimType VoidType) = "()"
 
 typeModuleName :: Type -> String
 typeModuleName (StructType tn _) = userTypeModuleName tn
 typeModuleName (PrimType (Newtype tn _)) = userTypeModuleName tn
 typeModuleName (PrimType (EnumType tn _ _)) = userTypeModuleName tn
 typeModuleName (PrimType (AtomType _)) = error "do not take typeModuleName of an AtomType"
-typeModuleName (PrimType VoidType) = error "do not take typeModuleName of a VoidType"
 
 userTypeModuleName :: String -> String
 userTypeModuleName = first_cap . userEnumValueName
@@ -274,7 +271,6 @@ importType (StructType n _) = UserType n
 importType (PrimType (EnumType n _ _)) = UserType n
 importType (PrimType (Newtype n _)) = UserType n
 importType (PrimType (AtomType _)) = NoImport
-importType (PrimType VoidType) = NoImport
 
 isUserDefined :: Type -> Bool
 isUserDefined t = case importType t of

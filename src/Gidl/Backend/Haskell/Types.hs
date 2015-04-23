@@ -61,14 +61,12 @@ typeHaskellType (PrimType  (AtomType a)) = case a of
   AtomWord Bits64 -> "Word64"
   AtomFloat -> "Float"
   AtomDouble -> "Double"
-typeHaskellType (PrimType VoidType) = "()"
 
 typeModuleName :: Type -> String
 typeModuleName (StructType tn _) = userTypeModuleName tn
 typeModuleName (PrimType (Newtype tn _)) = userTypeModuleName tn
 typeModuleName (PrimType (EnumType tn _ _)) = userTypeModuleName tn
 typeModuleName (PrimType (AtomType _)) = error "do not take typeModuleName of an AtomType"
-typeModuleName (PrimType VoidType) = error "do not take typeModuleName of a VoidType"
 
 userTypeModuleName :: String -> String
 userTypeModuleName = first_cap . u_to_camel
@@ -236,7 +234,6 @@ primTypePutter (AtomType (AtomWord Bits32)) = text "putWord32be"
 primTypePutter (AtomType (AtomWord Bits64)) = text "putWord64be"
 primTypePutter (AtomType AtomFloat) = text "putFloat32be"
 primTypePutter (AtomType AtomDouble) = text "putFloat64be"
-primTypePutter VoidType = text "put"
 
 
 typeGetter :: Type -> Doc
@@ -253,7 +250,6 @@ primTypeGetter (AtomType (AtomWord Bits32)) = text "getWord32be"
 primTypeGetter (AtomType (AtomWord Bits64)) = text "getWord64be"
 primTypeGetter (AtomType AtomFloat) = text "getFloat32be"
 primTypeGetter (AtomType AtomDouble) = text "getFloat64be"
-primTypeGetter VoidType = text "get"
 
 sizedPrim :: Bits -> PrimType
 sizedPrim b = AtomType (AtomWord b)
@@ -276,7 +272,6 @@ importType (PrimType (AtomType a)) =
     AtomWord _ -> LibraryType "Data.Word"
     AtomInt _ -> LibraryType "Data.Int"
     _ -> NoImport
-importType (PrimType VoidType) = NoImport
 
 isUserDefined :: Type -> Bool
 isUserDefined tr = case importType tr of
