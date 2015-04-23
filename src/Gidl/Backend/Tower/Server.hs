@@ -201,14 +201,22 @@ interfaceServer i =
 
   methodBody n (StreamMethod _ _) =
     text "let" <+> n <> text "Producer" <+> equals <+> n
-  methodBody n (AttrMethod Read _) =
-    n <> text "ValProducer" <+> text "<- readableAttrServer"
-      <+> n <+> n <> text "GetConsumer"
-  methodBody n (AttrMethod Write _) =
-    text "writableAttrServer" <+> n <+> n <> text "SetConsumer"
-  methodBody n (AttrMethod ReadWrite _) =
-    n <> text "ValProducer" <+> text "<- readwritableAttrServer"
-      <+> n <+> n <> text "GetConsumer" <+> n <> text "SetConsumer"
+  methodBody n (AttrMethod Read t) =
+    n <> text "GetRespProducer" <+> text "<- readableAttrServer"
+      <+> seqnumGetter t "val" <+> seqnumGetter t "seqnum"
+      <+> n <+> n <> text "GetReqConsumer"
+  methodBody n (AttrMethod Write t) =
+    n <> text "SetRespProducer" <+> text "<- writableAttrServer"
+      <+> seqnumGetter t "val" <+> seqnumGetter t "seqnum"
+      <+> n <+> n <> text "SetReqConsumer"
+  methodBody n (AttrMethod ReadWrite t) =
+    parens (n <> text "GetRespProducer" <> comma
+            <+> n <> text "SetRespProducer")
+      <+> text "<- readwritableAttrServer"
+      <+> seqnumGetter t "val" <+> seqnumGetter t "seqnum"
+      <+> n <+> n <> text "GetReqConsumer" <+> n <> text "SetReqConsumer"
+
+  seqnumGetter t s = importPrefix (importType (sequenceNumStruct t)) <> dot <> text s
 
 
 guardEmptySchema :: Schema -> Doc -> Doc -> Doc

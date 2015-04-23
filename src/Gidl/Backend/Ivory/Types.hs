@@ -277,6 +277,9 @@ isUserDefined t = case importType t of
   UserType _ -> True
   _ -> False
 
+importPrefix :: ImportType -> Doc
+importPrefix (UserType t) = text (userTypeModuleName t)
+importPrefix _ = empty
 
 importDecl :: (String -> Doc) -> ImportType -> Doc
 importDecl _ (LibraryType p) =
