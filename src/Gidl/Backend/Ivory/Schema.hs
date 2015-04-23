@@ -16,7 +16,7 @@ schemaModule :: [String] -> Interface -> Schema -> Artifact
 schemaModule modulepath ir schema =
   artifactPath (intercalate "/" (modulepath ++ [ifModuleName ir])) $
   artifactText (schemaName ++ ".hs") $
-  prettyLazyText 80 $
+  prettyLazyText 1000 $
   stack
     [ text "{-# LANGUAGE DataKinds #-}"
     , text "{-# LANGUAGE RankNTypes #-}"

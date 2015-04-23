@@ -69,7 +69,7 @@ defaultCabalTest name_ main_ build_depends_ = CabalTest
 
 cabalFileArtifact :: CabalFile -> Artifact
 cabalFileArtifact CabalFile{..} = artifactText (name ++ ".cabal") $
-  prettyLazyText 80 $ stack
+  prettyLazyText 1000 $ stack
     [ text "name:" <+> text name
     , text "version:" <+> text version
     , text "author:" <+> text author

@@ -16,7 +16,7 @@ umbrellaModule :: [String] -> Interface -> Artifact
 umbrellaModule modulepath i =
   artifactPath (intercalate "/" modulepath) $
   artifactText (ifModuleName i ++ ".hs") $
-  prettyLazyText 80 $
+  prettyLazyText 1000 $
   stack
     [ text "module" <+> mname
     , indent 2 $ encloseStack lparen (rparen <+> text "where") comma
@@ -37,7 +37,7 @@ serverModule :: [String] -> Interface -> Artifact
 serverModule modulepath i =
   artifactPath (intercalate "/" (modulepath ++ [ifModuleName i])) $
   artifactText "Server.hs" $
-  prettyLazyText 80 $
+  prettyLazyText 1000 $
   stack
     [ text "{-# LANGUAGE DataKinds #-}"
     , text "{-# LANGUAGE RankNTypes #-}"

@@ -17,7 +17,7 @@ interfaceModule :: Bool -> [String] -> Interface -> Artifact
 interfaceModule useAeson modulepath i =
   artifactPath (intercalate "/" modulepath) $
   artifactText ((ifModuleName i) ++ ".hs") $
-  prettyLazyText 80 $
+  prettyLazyText 1000 $
   stack $
     [ text "{-# LANGUAGE DeriveDataTypeable #-}"
     , text "{-# LANGUAGE DeriveGeneric #-}"

@@ -14,7 +14,7 @@ typeModule :: Bool -> [String] -> Type -> Artifact
 typeModule useAeson modulepath t =
   artifactPath (intercalate "/" modulepath) $
   artifactText ((typeModuleName t) ++ ".hs") $
-  prettyLazyText 80 $
+  prettyLazyText 1000 $
   stack $
     [ text "{-# LANGUAGE RecordWildCards #-}"
     , text "{-# LANGUAGE DeriveDataTypeable #-}"

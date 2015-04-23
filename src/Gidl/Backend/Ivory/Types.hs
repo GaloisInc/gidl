@@ -12,7 +12,7 @@ typeUmbrella :: [String] -> [Type] -> Artifact
 typeUmbrella modulepath ts =
   artifactPath (intercalate "/" modulepath) $
   artifactText ("Types.hs") $
-  prettyLazyText 80 $
+  prettyLazyText 1000 $
   stack
     [ text "module" <+> typeModulePath modulepath "Types" <+> text "where"
     , empty
@@ -37,7 +37,7 @@ typeModule :: [String] -> Type -> Artifact
 typeModule modulepath t =
   artifactPath (intercalate "/" modulepath) $
   artifactText ((typeModuleName t) ++ ".hs") $
-  prettyLazyText 80 $
+  prettyLazyText 1000 $
   stack
     [ text "{-# LANGUAGE DataKinds #-}"
     , text "{-# LANGUAGE TypeOperators #-}"

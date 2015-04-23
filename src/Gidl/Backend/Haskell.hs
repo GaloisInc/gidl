@@ -50,7 +50,7 @@ haskellBackend iis pkgname namespace_raw =
 
 makefile :: Artifact
 makefile = artifactText "Makefile" $
-  prettyLazyText 80 $ stack
+  prettyLazyText 1000 $ stack
     [ text "default:"
     , text "\tcabal build"
     , empty

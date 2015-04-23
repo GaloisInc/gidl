@@ -98,7 +98,7 @@ rpcModule :: [String] -> Interface -> Artifact
 rpcModule ns iface =
   artifactPath (foldr (\ p rest -> p ++ "/" ++ rest) "Rpc" ns) $
   artifactText (ifaceMod ++ ".hs") $
-  prettyLazyText 80 $
+  prettyLazyText 1000 $
   genServer ns iface ifaceMod
   where
   ifaceMod = ifModuleName iface

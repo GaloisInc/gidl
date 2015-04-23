@@ -12,7 +12,7 @@ import Text.PrettyPrint.Mainland
 serializeTestModule :: [String] -> [Interface] -> Artifact
 serializeTestModule modulepath is =
   artifactText "SerializeTest.hs" $
-  prettyLazyText 80 $
+  prettyLazyText 1000 $
   stack
     [ text "{-# LANGUAGE ScopedTypeVariables #-}"
     , empty
