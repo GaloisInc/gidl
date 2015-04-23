@@ -182,7 +182,7 @@ webServerImports hasConsumer = stack $
   , text "import           Control.Concurrent.STM"
   , text "import           Control.Monad (forever)"
   , text "import           Control.Monad.IO.Class (liftIO)"
-  , text "import           Data.Aeson (encode)"
+  , text "import           Data.Aeson (encode,Value(Null))"
   ]
 
 
@@ -288,7 +288,8 @@ readStream :: Doc -> MethodName -> Doc
 readStream state name = nest 2 $ text "Snap.method Snap.GET $"
   </> doStmts
     [ text "x <- liftIO (atomically (readTSampleVar" <+> svar <> text "))"
-    , text "Snap.writeLBS (encode x)"
+    , text "let e = case x of Just v -> encode v; Nothing -> encode Null"
+    , text "Snap.writeLBS e"
     ]
   where
   svar = parens (fieldName name <+> state)

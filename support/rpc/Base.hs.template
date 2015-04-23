@@ -10,7 +10,7 @@ import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Control.Concurrent (forkIO)
 import           Control.Concurrent.STM
-                     (atomically,STM,retry,TVar,newTVar,writeTVar,readTVar
+                     (atomically,STM,TVar,newTVar,writeTVar,readTVar
                      ,TQueue,readTQueue,writeTQueue
                      ,TMVar,newEmptyTMVarIO,takeTMVar,putTMVar,newTVarIO
                      ,modifyTVar)
@@ -69,13 +69,8 @@ newTSampleVarIO  = atomically (TSampleVar `fmap` newTVar Nothing)
 writeTSampleVar :: TSampleVar a -> a -> STM ()
 writeTSampleVar (TSampleVar tv) a = writeTVar tv (Just a)
 
-readTSampleVar :: TSampleVar a -> STM a
-readTSampleVar (TSampleVar tv) =
-  do mb <- readTVar tv
-     case mb of
-       Just a  -> return a
-       Nothing -> retry
-
+readTSampleVar :: TSampleVar a -> STM (Maybe a)
+readTSampleVar (TSampleVar tv) = readTVar tv
 
 -- Response Handling -----------------------------------------------------------
 
