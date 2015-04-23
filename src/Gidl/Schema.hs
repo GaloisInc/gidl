@@ -74,7 +74,6 @@ sequenceNumStruct t = StructType ("sequence_numbered_" ++ (typeName t))
                           [ ("seqnum", sequence_num_t)
                           , ("val", t) ]
 
-
 mkMsgId :: Message -> MsgId
 mkMsgId = fromIntegral . hash . show
 

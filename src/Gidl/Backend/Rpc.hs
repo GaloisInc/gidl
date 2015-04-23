@@ -14,7 +14,7 @@ import Gidl.Interface
            ,interfaceMethods)
 import Gidl.Schema
            (Schema(..),producerSchema,consumerSchema,Message(..)
-           ,consumerMessages,interfaceTypes)
+           ,consumerMessages,interfaceTypes,getResponseMessage)
 import Gidl.Types (Type(..))
 
 import Data.Char (isSpace)
@@ -273,13 +273,14 @@ mkRoute ifacePfx consSuffix state method@(name,mty) =
       [ readStream state name ]
 
   handlersFor (AttrMethod Read _) =
-      [ readAttr  consSuffix m | m <- consumerMessages method ]
+      [ readAttr method consSuffix m | m <- consumerMessages method ]
 
   handlersFor (AttrMethod Write _) =
       [ writeAttr consSuffix m | m <- consumerMessages method ]
 
   handlersFor (AttrMethod ReadWrite ty) =
-      [ readAttr  consSuffix m | m <- consumerMessages (name,AttrMethod Read  ty) ] ++
+      [ readAttr method consSuffix m
+      | m <- consumerMessages (name,AttrMethod Read ty) ] ++
       [ writeAttr consSuffix m | m <- consumerMessages (name,AttrMethod Write ty) ]
 
 
@@ -295,14 +296,24 @@ readStream state name = nest 2 $ text "Snap.method Snap.GET $"
 constrName :: String -> Message -> String
 constrName suffix (Message n _) = userTypeModuleName n ++ suffix
 
-readAttr :: String -> Message -> Doc
-readAttr suffix msg = text "Snap.method Snap.GET $" <+> doStmts
-  [ text "resp <- liftIO $ sendRequest conn $"
-                   <+> text (constrName suffix msg)
-                   <+> dot <+> text "SequenceNum.SequenceNum"
+readAttr :: (MethodName,Method) -> String -> Message -> Doc
+readAttr (attrname, (AttrMethod _ t)) suffix msg =
+  text "Snap.method Snap.GET $" <+> doStmts
+    [ parens (text responseConstructor
+             <+> parens (responseSNumed <> dot <> responseSNumed
+                        <+> text "_ resp"))
+      <+> text "<- liftIO $ sendRequest conn $"
+                     <+> text (constrName suffix msg)
+                     <+> dot <+> text "SequenceNum.SequenceNum"
 
-  , text "Snap.writeLBS (encode resp)"
-  ]
+    , text "Snap.writeLBS (encode resp)"
+    ]
+  where
+  resp@(Message _ (StructType resp_tyname _)) = getResponseMessage attrname t
+  responseConstructor = constrName "Producer" resp
+  responseSNumed = text $ userTypeModuleName resp_tyname
+
+readAttr _ _ _ = error "impossible readAttr"
 
 writeAttr :: String -> Message -> Doc
 writeAttr suffix msg = text "Snap.method Snap.POST $" <+> doStmts
