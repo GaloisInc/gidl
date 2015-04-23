@@ -25,7 +25,9 @@ towerBackend iis pkgname namespace_raw =
   where
   namespace = dotwords namespace_raw
 
-  sources = isources ++ [ attrModule (namespace ++ ["Tower"]) ] ++ tsources
+  sources = isources ++ tsources
+         ++ [ attrModule (namespace ++ ["Tower"])
+                         (namespace ++ ["Ivory","Types"]) ]
 
   tsources = towerSources iis (namespace ++ ["Tower"])
 
@@ -88,10 +90,12 @@ codegenTest iis modulepath =
       ++ " i >>= \\(_ :: ChanOutput (Array 80 (Stored Uint8))) -> return ()"
 
 
-attrModule :: [String] -> Artifact
-attrModule modulepath =
+attrModule :: [String] -> [String] -> Artifact
+attrModule modulepath typespath =
   artifactPath (intercalate "/" modulepath) $
   artifactCabalFileTemplate P.getDataDir fname
-    [("module_path", intercalate "." modulepath )]
+    [("module_path", intercalate "." modulepath )
+    ,("types_path", intercalate "." typespath)
+    ]
   where
   fname = "support/tower/Attr.hs.template"
