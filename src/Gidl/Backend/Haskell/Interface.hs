@@ -6,7 +6,7 @@ import Data.Monoid
 import Data.List (intercalate, nub)
 import Data.Char (toUpper)
 
-import Gidl.Types
+import Gidl.Types hiding (typeName)
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Haskell.Types
@@ -21,6 +21,7 @@ interfaceModule useAeson modulepath i =
   stack $
     [ text "{-# LANGUAGE DeriveDataTypeable #-}"
     , text "{-# LANGUAGE DeriveGeneric #-}"
+    , text "{-# OPTIONS_GHC -fno-warn-unused-imports #-}"
     , empty
     , text "module"
       <+> im (ifModuleName i)

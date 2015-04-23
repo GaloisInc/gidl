@@ -1,6 +1,6 @@
 module Gidl.Backend.Haskell where
 
-import Gidl.Types
+import Gidl.Schema
 import Gidl.Interface
 import Gidl.Backend.Cabal
 import Gidl.Backend.Haskell.Types
@@ -10,10 +10,11 @@ import Gidl.Backend.Haskell.Interface
 import Ivory.Artifact
 
 import Data.Char (isSpace)
+import Data.List (nub)
 import Text.PrettyPrint.Mainland
 
-haskellBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
-haskellBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
+haskellBackend :: [Interface] -> String -> String -> [Artifact]
+haskellBackend iis pkgname namespace_raw =
   [ cabalFileArtifact cf
   , makefile
   , artifactPath "tests" serializeTestMod
@@ -21,12 +22,13 @@ haskellBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
   [ artifactPath "src" m | m <- sourceMods
   ]
   where
+  types = nub [ t | i <- iis, t <- interfaceTypes i]
   tmods = [ typeModule False (namespace ++ ["Types"]) t
-          | (_tn, t) <- te
+          | t <- types
           , isUserDefined t
           ]
   imods = [ interfaceModule False (namespace ++ ["Interface"]) i
-          | (_iname, i) <- ie
+          | i <- iis
           ]
   sourceMods = tmods ++ imods
   cf = (defaultCabalFile pkgname cabalmods deps) { tests = [ serializeTest ] }
@@ -35,7 +37,7 @@ haskellBackend (TypeEnv te) (InterfaceEnv ie) pkgname namespace_raw =
 
   serializeTest = defaultCabalTest "serialize-test" "SerializeTest.hs"
                       (pkgname:deps)
-  serializeTestMod = serializeTestModule namespace (map snd ie)
+  serializeTestMod = serializeTestModule namespace iis
 
   namespace = dotwords namespace_raw
 

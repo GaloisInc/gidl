@@ -13,6 +13,7 @@ import Text.Show.Pretty
 
 import Ivory.Artifact
 import Gidl.Parse
+import Gidl.Interface
 import Gidl.Backend.Haskell
 import Gidl.Backend.Ivory
 import Gidl.Backend.Rpc (rpcBackend)
@@ -135,15 +136,14 @@ run = do
       when (debug opts) $ do
         putStrLn (ppShow te)
         putStrLn (ppShow ie)
-      case backend opts of
-        HaskellBackend -> artifactBackend opts $
-          haskellBackend te ie (packagename opts) (namespace opts)
-        IvoryBackend -> artifactBackend opts $
-          ivoryBackend te ie (packagename opts) (namespace opts)
-        TowerBackend -> artifactBackend opts $
-          towerBackend te ie (packagename opts) (namespace opts)
-        RpcBackend -> artifactBackend opts $
-          rpcBackend te ie (packagename opts) (namespace opts)
+      let InterfaceEnv ie' = ie
+          interfaces = map snd ie'
+          b = case backend opts of
+                HaskellBackend -> haskellBackend
+                IvoryBackend -> ivoryBackend
+                TowerBackend -> towerBackend
+                RpcBackend -> rpcBackend
+      artifactBackend opts (b interfaces (packagename opts) (namespace opts))
 
   where
   artifactBackend :: Opts -> [Artifact] -> IO ()

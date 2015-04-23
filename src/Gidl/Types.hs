@@ -4,10 +4,13 @@ module Gidl.Types
   , lookupTypeName
   , insertType
   , typeLeaves
+  , childTypes
   , sizeOf
   , basePrimType
+  , typeName
   ) where
 
+import Data.Tuple (swap)
 import Data.List (nub)
 import Gidl.Types.AST
 import Gidl.Types.Base
@@ -22,6 +25,17 @@ lookupTypeName tn te =
   where
   aux (TypeEnv e) = lookup tn e
 
+typeName :: Type -> TypeName
+typeName (StructType n _) = n
+typeName (PrimType (EnumType n _ _)) = n
+typeName (PrimType (Newtype n _)) = n
+typeName (PrimType VoidType) = error "XXX"
+typeName t@(PrimType (AtomType _)) =
+  let TypeEnv bte = baseTypeEnv in
+  case lookup t (map swap bte) of
+    Just n -> n
+    Nothing -> error "impossible: cannot find name for AtomType in baseTypeEnv"
+
 insertType :: TypeName -> Type -> TypeEnv -> TypeEnv
 insertType tn t e@(TypeEnv te) = case lookupTypeName tn e of
   Nothing -> TypeEnv ((tn,t):te)
@@ -32,6 +46,8 @@ typeLeaves (StructType _ s) = nub (map snd s)
 typeLeaves (PrimType (Newtype _ tn)) = [PrimType tn]
 typeLeaves _ = []
 
+childTypes :: Type -> [Type]
+childTypes t = [t] ++ concat (map childTypes (typeLeaves t))
 
 sizeOf :: Type -> Integer
 sizeOf (StructType _ s) = sum [ sizeOf tr | (_, tr) <- s ]

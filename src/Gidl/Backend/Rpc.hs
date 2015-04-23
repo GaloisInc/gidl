@@ -10,12 +10,12 @@ import Gidl.Backend.Haskell.Types
            (typeModule,isUserDefined,typeModuleName,userTypeModuleName
            ,importType,importDecl)
 import Gidl.Interface
-           (Interface(..),InterfaceEnv(..),MethodName,Method(..),Perm(..)
+           (Interface(..),MethodName,Method(..),Perm(..)
            ,interfaceMethods)
 import Gidl.Schema
            (Schema(..),producerSchema,consumerSchema,Message(..)
-           ,consumerMessages)
-import Gidl.Types (Type,TypeEnv(..))
+           ,consumerMessages,interfaceTypes)
+import Gidl.Types (Type)
 
 import Data.Char (isSpace)
 import Data.List (nub)
@@ -31,8 +31,8 @@ import Text.PrettyPrint.Mainland
 
 -- External Interface ----------------------------------------------------------
 
-rpcBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
-rpcBackend (TypeEnv te) (InterfaceEnv ie) pkgName nsStr =
+rpcBackend :: [Interface] -> String -> String -> [Artifact]
+rpcBackend iis pkgName nsStr =
     cabalFileArtifact (defaultCabalFile pkgName modules buildDeps)
   : artifactCabalFile P.getDataDir "support/rpc/Makefile"
   : map (artifactPath "src") sourceMods
@@ -48,14 +48,15 @@ rpcBackend (TypeEnv te) (InterfaceEnv ie) pkgName nsStr =
 
   sourceMods = tmods ++ imods ++ [rpcBaseModule namespace]
 
+  types      = nub [ t | i <- iis, t <- interfaceTypes i]
   tmods      = [ typeModule True (namespace ++ ["Types"]) t
-               | (_tn, t) <- te
+               | t <- types
                , isUserDefined t
                ]
 
   imods      = concat [ [ interfaceModule True (namespace ++ ["Interface"]) i
                         , rpcModule namespace i ]
-                      | (_iname, i) <- ie
+                      | i <- iis
                       ]
 
 

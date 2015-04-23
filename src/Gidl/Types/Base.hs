@@ -11,6 +11,7 @@ module Gidl.Types.Base
   , bool_t
   , float_t
   , double_t
+  , sequence_num_t
   , baseTypeEnv
   ) where
 
@@ -43,6 +44,9 @@ float_t = PrimType (AtomType AtomFloat)
 double_t :: Type
 double_t = PrimType (AtomType AtomDouble)
 
+sequence_num_t :: Type
+sequence_num_t = PrimType (Newtype "sequence_num_t" (AtomType (AtomWord Bits32)))
+
 baseTypeEnv :: TypeEnv
 baseTypeEnv = TypeEnv
   [ ( "uint8_t" , uint8_t)
@@ -56,5 +60,6 @@ baseTypeEnv = TypeEnv
   , ( "bool_t"  , bool_t)
   , ( "float_t" , float_t)
   , ( "double_t", double_t)
+  , ( "sequence_num_t", sequence_num_t)
   ]
 

@@ -6,7 +6,7 @@ import Data.Monoid
 import Data.List (intercalate, nub)
 import Data.Char (toUpper)
 
-import Gidl.Types
+import Gidl.Types hiding (typeName)
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types

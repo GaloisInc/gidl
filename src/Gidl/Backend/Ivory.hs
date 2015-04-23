@@ -4,25 +4,24 @@ import Ivory.Artifact
 import Ivory.Artifact.Template
 
 import Data.Char (isSpace)
-import Data.List (intercalate)
+import Data.List (intercalate, nub)
 
 import qualified Paths_gidl as P
 
-import Gidl.Types
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Cabal
 import Gidl.Backend.Ivory.Types
 import Gidl.Backend.Ivory.Schema
 
-ivoryBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
-ivoryBackend te ie pkgname namespace_raw =
+ivoryBackend :: [Interface] -> String -> String -> [Artifact]
+ivoryBackend iis pkgname namespace_raw =
   [ cabalFileArtifact cf
   , artifactPath "tests" $ codegenTest namespace
   , makefile
   ] ++ map (artifactPath "src") sources
   where
-  sources = ivorySources te ie namespace
+  sources = ivorySources iis namespace
   namespace = dotwords namespace_raw
 
   cf = (defaultCabalFile pkgname cabalmods deps) { executables = [ cg_exe ] }
@@ -33,18 +32,18 @@ ivoryBackend te ie pkgname namespace_raw =
 
 
 
-ivorySources :: TypeEnv -> InterfaceEnv -> [String] -> [Artifact]
-ivorySources (TypeEnv te) (InterfaceEnv ie) namespace =
+ivorySources :: [Interface] -> [String] -> [Artifact]
+ivorySources iis namespace =
   tmods ++ concat smods ++ [ typeUmbrella namespace userDefinedTypes
                            , unpackModule namespace
                            ]
   where
-  userDefinedTypes = [ t | (_,t) <- te, isUserDefined t ]
+  userDefinedTypes = nub [ t | i <- iis, t <- interfaceTypes i, isUserDefined t ]
   tmods = [ typeModule (namespace ++ ["Types"]) t
           | t <- userDefinedTypes ]
   smods = [ [ schemaModule (namespace ++ ["Interface"]) i (producerSchema i)
             , schemaModule (namespace ++ ["Interface"]) i (consumerSchema i) ]
-          | (_iname, i) <- ie ]
+          | i <- iis ]
 
 dotwords :: String -> [String]
 dotwords s = case dropWhile isDot s of

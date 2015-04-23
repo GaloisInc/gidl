@@ -2,6 +2,7 @@
 module Gidl.Schema where
 
 import Data.Word
+import Data.List (nub)
 import Data.Hashable
 import Gidl.Types
 import Gidl.Interface
@@ -12,6 +13,16 @@ data Message = Message String Type
 data Schema = Schema String [(MsgId, Message)]
             deriving (Eq, Show)
 
+-- set of all types required to implement a schema
+schemaTypes :: Schema -> [Type]
+schemaTypes (Schema _ ms) = nub (concat (map aux ms))
+  where aux (_, (Message _ t)) = childTypes t
+
+interfaceTypes :: Interface -> [Type]
+interfaceTypes i = nub (ptypes ++ ctypes)
+  where
+  ptypes = schemaTypes (producerSchema i)
+  ctypes = schemaTypes (consumerSchema i)
 
 producerSchema :: Interface -> Schema
 producerSchema ir = Schema "Producer" [(mkMsgId m, m) | m <- messages ]
@@ -21,9 +32,9 @@ producerSchema ir = Schema "Producer" [(mkMsgId m, m) | m <- messages ]
 producerMessages :: (MethodName,Method) -> [Message]
 producerMessages (streamname, (StreamMethod _ tr)) =
   [ Message streamname tr ]
-producerMessages (_ , (AttrMethod Write _)) = []
-producerMessages (attrname, (AttrMethod  _ tr)) =
-  [ Message (attrname ++ "_val") tr ]
+producerMessages (attrname, (AttrMethod perm tr)) =
+  [ setRequestMessage attrname tr | writable perm ] ++
+  [ getRequestMessage attrname tr | readable perm ]
 
 consumerSchema :: Interface -> Schema
 consumerSchema ir = Schema "Consumer" [(mkMsgId m, m) | m <- messages ]
@@ -32,14 +43,36 @@ consumerSchema ir = Schema "Consumer" [(mkMsgId m, m) | m <- messages ]
 
 consumerMessages :: (MethodName,Method) -> [Message]
 consumerMessages (_, (StreamMethod _ _)) = [] -- XXX eventaully add set rate?
-consumerMessages (attrname, (AttrMethod Write tr)) =
-  [ Message (attrname ++ "_set") tr ]
-consumerMessages (attrname, (AttrMethod Read _)) =
-  [ Message (attrname ++ "_get")  (PrimType VoidType) ]
-consumerMessages (attrname, (AttrMethod ReadWrite tr)) =
-  [ Message (attrname ++ "_set") tr
-  , Message (attrname ++ "_get") (PrimType VoidType)
-  ]
+consumerMessages (attrname, (AttrMethod perm tr)) =
+  [ setResponseMessage attrname tr | writable perm ] ++
+  [ getResponseMessage attrname tr | readable perm ]
+
+readable :: Perm -> Bool
+readable Read = True
+readable ReadWrite = True
+readable _ = False
+
+writable :: Perm -> Bool
+writable Write = True
+writable ReadWrite = True
+writable _ = False
+
+setRequestMessage :: MethodName -> Type -> Message
+setRequestMessage n t = Message (n ++ "_set_req") (sequenceNumStruct t)
+
+setResponseMessage :: MethodName -> Type -> Message
+setResponseMessage n _ = Message (n ++ "_set_resp") sequence_num_t
+
+getRequestMessage :: MethodName -> Type -> Message
+getRequestMessage n _ = Message (n ++ "_get_req") sequence_num_t
+
+getResponseMessage :: MethodName -> Type -> Message
+getResponseMessage n t = Message (n ++ "_get_resp") (sequenceNumStruct t)
+
+sequenceNumStruct :: Type -> Type
+sequenceNumStruct t = StructType ("sequence_numbered_" ++ (typeName t))
+                          [ ("seqnum", sequence_num_t)
+                          , ("val", t) ]
 
 
 mkMsgId :: Message -> MsgId

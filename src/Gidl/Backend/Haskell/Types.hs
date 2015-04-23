@@ -268,6 +268,7 @@ data ImportType = LibraryType String
 
 importType :: Type -> ImportType
 importType (StructType n _) = UserType n
+importType (PrimType (EnumType "bool_t" _ _)) = NoImport
 importType (PrimType (EnumType n _ _)) = UserType n
 importType (PrimType (Newtype n _)) = UserType n
 importType (PrimType (AtomType a)) =

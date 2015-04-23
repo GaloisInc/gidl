@@ -7,7 +7,6 @@ import Ivory.Artifact.Template
 
 import qualified Paths_gidl as P
 
-import Gidl.Types
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Cabal
@@ -16,21 +15,21 @@ import Gidl.Backend.Ivory.Schema (ifModuleName)
 import Gidl.Backend.Tower.Schema
 import Gidl.Backend.Tower.Server
 
-towerBackend :: TypeEnv -> InterfaceEnv -> String -> String -> [Artifact]
-towerBackend te ie pkgname namespace_raw =
+towerBackend :: [Interface] -> String -> String -> [Artifact]
+towerBackend iis pkgname namespace_raw =
   [ cabalFileArtifact cf
   , makefile
   , defaultconf
-  , artifactPath "tests" (codegenTest ie namespace)
+  , artifactPath "tests" (codegenTest iis namespace)
   ] ++ map (artifactPath "src") sources
   where
   namespace = dotwords namespace_raw
 
   sources = isources ++ [ attrModule (namespace ++ ["Tower"]) ] ++ tsources
 
-  tsources = towerSources ie (namespace ++ ["Tower"])
+  tsources = towerSources iis (namespace ++ ["Tower"])
 
-  isources = ivorySources te ie (namespace ++ ["Ivory"])
+  isources = ivorySources iis (namespace ++ ["Ivory"])
 
   cf = (defaultCabalFile pkgname cabalmods deps) { executables = [ cg_exe ] }
   cabalmods = map (filePathToPackage . artifactFileName) sources
@@ -39,8 +38,8 @@ towerBackend te ie pkgname namespace_raw =
             (deps ++ (words "tower-config tower-freertos-stm32") ++ [pkgname])
 
 
-towerSources :: InterfaceEnv -> [String] -> [Artifact]
-towerSources (InterfaceEnv ie) namespace = towerInterfaces
+towerSources :: [Interface] -> [String] -> [Artifact]
+towerSources iis namespace = towerInterfaces
   where
   towerInterfaces = concat
     [ [ schemaModule    ifnamespace i (producerSchema i)
@@ -48,7 +47,7 @@ towerSources (InterfaceEnv ie) namespace = towerInterfaces
       , serverModule    ifnamespace i
       , umbrellaModule  ifnamespace i
       ]
-    | (_iname, i) <- ie ]
+    | i <- iis ]
   ifnamespace = namespace ++ ["Interface"]
 
 makefile :: Artifact
@@ -57,8 +56,8 @@ makefile = artifactCabalFile P.getDataDir "support/tower/Makefile"
 defaultconf :: Artifact
 defaultconf = artifactCabalFile P.getDataDir "support/tower/default.conf"
 
-codegenTest :: InterfaceEnv -> [String] -> Artifact
-codegenTest (InterfaceEnv ie) modulepath =
+codegenTest :: [Interface] -> [String] -> Artifact
+codegenTest iis modulepath =
   artifactCabalFileTemplate P.getDataDir fname
     [("module_path",intercalate "." modulepath)
     ,("imports", intercalate "\n"
@@ -67,9 +66,9 @@ codegenTest (InterfaceEnv ie) modulepath =
                     ++ "\n"
                     ++ "import "
                     ++ interfaceImport (ifModuleName i) "Consumer"
-                  | (_, i) <- ie
+                  | i <- iis
                   ])
-    ,("app_body", intercalate "\n  " (concat [ interfaceTest i | (_, i) <- ie ]))
+    ,("app_body", intercalate "\n  " (concat [ interfaceTest i | i <- iis ]))
     ]
   where
   fname = "support/tower/CodeGen.hs.template"
