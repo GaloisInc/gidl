@@ -16,7 +16,7 @@
 
 -- Enums are pairs of names and integer values. Must be a one-to-one
 -- mapping: names are not repeated, values are not repeated.
--- Enums default to 32 bit width if you don't really care.
+-- Enums default to 8 bit width if you don't really care.
 -- N.B. we should probably change it to default to the smallest
 -- width that fits the values the user declared.
 (def-enum mode_t
@@ -25,9 +25,10 @@
 
 -- The user can specify a bit width for enums with the
 -- following syntax. 8, 16, 32, 64 bit widths are valid.
-(def-enum (armed_t 8)
+-- Integer literals can use any haskell integer literal format
+(def-enum (armed_t 32)
  (disarmed 0)
- (armed 1))
+ (armed 0x80000000))
 
 -- Structures are a set of pairs of names and types. All
 -- names must be distinct. All types must be atomic, enum,

@@ -242,7 +242,7 @@ tEnumDecl = asList go
 
 tEnumName :: Parse (Identifier, Bits)
 tEnumName (L [name, size]) = (,) <$> tSymbol name <*> tBits size
-tEnumName name             = (,) <$> tSymbol name <*> return Bits32
+tEnumName name             = (,) <$> tSymbol name <*> return Bits8
 
 tEnumBody :: Parse (Identifier, Integer)
 tEnumBody e =
