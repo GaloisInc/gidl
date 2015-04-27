@@ -16,7 +16,8 @@ data-files: support/ivory/Unpack.hs.template,
             support/tower/default.conf,
             support/tower/Makefile,
             support/rpc/Base.hs.template,
-            support/rpc/Makefile
+            support/rpc/Makefile,
+            Makefile.sandbox
 
 library
   exposed-modules:     Gidl,
