@@ -18,9 +18,9 @@ script:
   - ghc --version
   - cabal --version
   - arm-none-eabi-gcc --version
-  - SCARGOT_REPO=$SCARGOT_REPO IVORY_REPO=$IVORY_REPO TOWER_REPO=$TOWER_REPO BSP_REPO=$BSP_REPO make create-sandbox
-  - IVORY_REPO=$IVORY_REPO TOWER_REPO=$TOWER_REPO BSP_REPO=$BSP_REPO make
-  - IVORY_REPO=$IVORY_REPO TOWER_REPO=$TOWER_REPO BSP_REPO=$BSP_REPO make test
+  - make create-sandbox
+  - make
+  - make test
 ghc:
   - 7.8
 branches:
