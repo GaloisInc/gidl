@@ -1,15 +1,6 @@
-
 SCARGOT_REPO ?= ../s-cargot
 IVORY_REPO ?= ../ivory
-
-default:
-	cabal build
-
-create-sandbox:
-	cabal sandbox init
-	cabal sandbox add-source $(SCARGOT_REPO)
-	cabal sandbox add-source $(IVORY_REPO)/ivory-artifact
-	cabal install --dependencies-only
+include Makefile.sandbox
 
 test: haskell-backend-test
 test: ivory-backend-test
@@ -73,15 +64,6 @@ rpc-backend-test:
 rpc-backend-test-clean:
 	-rm -rf tests/gidl-ivory-backend-test
 
-
 clean: ivory-backend-test-clean
 clean: tower-backend-test-clean
 clean: haskell-backend-test-clean
-
-distclean: clean
-	-rm -rf dist
-
-clean-sandbox: distclean
-	-rm -rf .cabal-sandbox
-	-rm cabal.sandbox.config
-

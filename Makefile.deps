@@ -1,0 +1,4 @@
+$(call add-cabal-package-source, \
+  $(SCARGOT_REPO) \
+  $(IVORY_REPO)/ivory-artifact \
+)

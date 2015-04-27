@@ -17,20 +17,39 @@ import Gidl.Backend.Ivory.Schema
 ivoryBackend :: [Interface] -> String -> String -> [Artifact]
 ivoryBackend iis pkgname namespace_raw =
   [ cabalFileArtifact cf
-  , artifactPath "tests" $ codegenTest namespace
   , makefile
+  , artifactCabalFile P.getDataDir "Makefile.sandbox"
+  , depsfile
+  , artifactPath "tests" $ codegenTest namespace
   ] ++ map (artifactPath "src") sources
   where
   sources = ivorySources iis namespace
   namespace = dotwords namespace_raw
 
-  cf = (defaultCabalFile pkgname cabalmods deps) { executables = [ cg_exe ] }
+  cf = (defaultCabalFile pkgname cabalmods cabalDeps) { executables = [ cg_exe ] }
   cg_exe = defaultCabalExe (pkgname ++ "-gen") "CodeGen.hs"
-              (deps ++ (words "ivory-backend-c") ++ [pkgname])
+              (cabalDeps ++ cabalExeDeps ++ [pkgname])
   cabalmods = map (filePathToPackage . artifactFileName) sources
-  deps = words "ivory ivory-stdlib ivory-serialize"
+  (makeDeps, cabalDeps) = unzip ivoryDeps
+  (makeExeDeps, cabalExeDeps) = unzip ivoryTestDeps
 
+  sandwich a b c = a ++ c ++ b
+  depsfile = artifactString "Makefile.deps" $ unlines $
+    sandwich ["$(call add-cabal-package-source, \\"] [")"] $
+    map (sandwich "  " " \\") $
+    makeDeps ++ makeExeDeps
 
+ivoryDeps :: [(String, String)]
+ivoryDeps =
+  [ ("$(IVORY_REPO)/ivory", "ivory")
+  , ("$(IVORY_REPO)/ivory-serialize", "ivory-serialize")
+  , ("$(IVORY_REPO)/ivory-stdlib", "ivory-stdlib")
+  ]
+
+ivoryTestDeps :: [(String, String)]
+ivoryTestDeps =
+  [ ("$(IVORY_REPO)/ivory-backend-c", "ivory-backend-c")
+  ]
 
 ivorySources :: [Interface] -> [String] -> [Artifact]
 ivorySources iis namespace =

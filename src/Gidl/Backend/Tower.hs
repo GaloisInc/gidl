@@ -19,6 +19,8 @@ towerBackend :: [Interface] -> String -> String -> [Artifact]
 towerBackend iis pkgname namespace_raw =
   [ cabalFileArtifact cf
   , makefile
+  , artifactCabalFile P.getDataDir "Makefile.sandbox"
+  , depsfile
   , defaultconf
   , artifactPath "tests" (codegenTest iis namespace)
   ] ++ map (artifactPath "src") sources
@@ -33,12 +35,32 @@ towerBackend iis pkgname namespace_raw =
 
   isources = ivorySources iis (namespace ++ ["Ivory"])
 
-  cf = (defaultCabalFile pkgname cabalmods deps) { executables = [ cg_exe ] }
+  cf = (defaultCabalFile pkgname cabalmods cabalDeps) { executables = [ cg_exe ] }
   cabalmods = map (filePathToPackage . artifactFileName) sources
-  deps = words "ivory ivory-stdlib ivory-serialize tower"
+  (makeDeps, cabalDeps) = unzip towerDeps
+  (makeExeDeps, cabalExeDeps) = unzip towerTestDeps
   cg_exe = defaultCabalExe (pkgname ++ "-gen") "CodeGen.hs"
-            (deps ++ (words "tower-config tower-freertos-stm32") ++ [pkgname])
+            (cabalDeps ++ cabalExeDeps ++ [pkgname])
 
+  sandwich a b c = a ++ c ++ b
+  depsfile = artifactString "Makefile.deps" $ unlines $
+    sandwich ["$(call add-cabal-package-source, \\"] [")"] $
+    map (sandwich "  " " \\") $
+    makeDeps ++ makeExeDeps
+
+towerDeps :: [(String, String)]
+towerDeps =
+  [ ("$(IVORY_REPO)/ivory", "ivory")
+  , ("$(IVORY_REPO)/ivory-serialize", "ivory-serialize")
+  , ("$(IVORY_REPO)/ivory-stdlib", "ivory-stdlib")
+  , ("$(TOWER_REPO)/tower", "tower")
+  ]
+
+towerTestDeps :: [(String, String)]
+towerTestDeps =
+  [ ("$(TOWER_REPO)/tower-config", "tower-config")
+  , ("$(BSP_REPO)/tower-freertos-stm32", "tower-freertos-stm32")
+  ]
 
 towerSources :: [Interface] -> [String] -> [Artifact]
 towerSources iis namespace = towerInterfaces
