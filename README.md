@@ -51,7 +51,10 @@ documented in `tests/example.idl`
 
 Gidl currently has backends for:
   - Haskell backend: translates types to algebraic datatypes, creates `cereal`
-    instances for serialization. RPC client layer in progress.
+    instances for serialization.
+  - Haskell-RPC backend: all of the features of the Haskell backend, and also
+    creates an HTTP server that exposes a JSON RPC-style interface for gidl
+    interfaces.
   - [Ivory][] backend: translates types to Ivory types, creates `ivory-serialize`
     instances for serialization.
   - [Tower][] backend: all of the features of the Ivory backend, and also
