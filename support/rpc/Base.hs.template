@@ -8,6 +8,7 @@ module $module_path$.Base where
 import           Data.Word (Word32)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import           Control.Applicative ((<|>))
 import           Control.Concurrent (forkIO)
 import           Control.Concurrent.STM
                      (atomically,STM,TVar,newTVar,writeTVar,readTVar
@@ -15,7 +16,7 @@ import           Control.Concurrent.STM
                      ,TMVar,newEmptyTMVarIO,takeTMVar,putTMVar,newTVarIO
                      ,modifyTVar)
 import           Control.Monad (forever)
-import           Snap.Core (Snap,route)
+import           Snap.Core (Snap)
 import qualified Snap.Http.Server as HTTP
 import           Snap.Util.FileServe (serveDirectory)
 
@@ -40,16 +41,10 @@ runServer Config { .. } serveRpc =
   do let snapCfg :: HTTP.Config Snap ()
          snapCfg  = HTTP.setPort cfgPort HTTP.defaultConfig
      HTTP.simpleHttpServe snapCfg body
-
   where
-
-  body =
-    do serveRpc
-
-       case cfgStaticDir of
-         Just path -> route [ ("", serveDirectory path) ]
-         Nothing   -> return ()
-
+  body = case cfgStaticDir of
+    Just path -> serveDirectory path <|> serveRpc
+    Nothing -> serveRpc
 
 data Request req resp = ReadRequest req (resp -> IO ())
                       | WriteRequest req
