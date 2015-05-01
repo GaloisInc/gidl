@@ -35,7 +35,8 @@
 -- or newtypes.
 (def-struct heartbeat_t
  (time time_micros_t)
- (armed armed_t))
+ (armed armed_t)
+ (err   bool_t))
 
 -- Definitions may be out of order. Circular definitions
 -- are not permitted.
