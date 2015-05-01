@@ -226,6 +226,7 @@ typePutter struct = text "put" <> text (typeModuleName struct)
 
 primTypePutter :: PrimType -> Doc
 primTypePutter (Newtype tn _) = text "put" <> text (userTypeModuleName tn)
+primTypePutter (EnumType "bool_t" _ _) = text "put"
 primTypePutter (EnumType tn _ _) = text "put" <> text (userTypeModuleName tn)
 primTypePutter (AtomType (AtomInt _)) = text "put"
 primTypePutter (AtomType (AtomWord Bits8)) = text "putWord8"
@@ -242,6 +243,7 @@ typeGetter struct = text "get" <> text (typeModuleName struct)
 
 primTypeGetter :: PrimType -> Doc
 primTypeGetter (Newtype tn _) = text "get" <> text (userTypeModuleName tn)
+primTypeGetter (EnumType "bool_t" _ _) = text "get"
 primTypeGetter (EnumType tn _ _) = text "get" <> text (userTypeModuleName tn)
 primTypeGetter (AtomType (AtomInt _)) = text "get"
 primTypeGetter (AtomType (AtomWord Bits8)) = text "getWord8"
