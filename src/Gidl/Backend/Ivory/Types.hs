@@ -70,6 +70,7 @@ typeModulePath modulepath mname = mconcat $ punctuate dot
 typeImportedIvoryType :: Type -> String
 typeImportedIvoryType t@(PrimType (Newtype tn _)) =
   userTypeModuleName tn ++ "." ++ typeIvoryType t
+typeImportedIvoryType t@(PrimType (EnumType "bool_t" _ _)) = typeIvoryType t
 typeImportedIvoryType t@(PrimType (EnumType tn _ _)) =
   userTypeModuleName tn ++ "." ++ typeIvoryType t
 typeImportedIvoryType t = typeIvoryType t
@@ -77,6 +78,7 @@ typeImportedIvoryType t = typeIvoryType t
 typeIvoryArea :: Type -> Doc
 typeIvoryArea t@(StructType _ _) = parens (text (typeIvoryType t))
 typeIvoryArea t@(PrimType (AtomType _)) = parens (text "Stored" <+> text (typeIvoryType t))
+typeIvoryArea t@(PrimType (EnumType "bool_t" _ _)) = parens (text "Stored" <+> text (typeIvoryType t))
 typeIvoryArea t@(PrimType _) = parens (text "Stored" <+> text (typeIvoryType t) <> dot <> text (typeIvoryType t))
 
 typeIvoryAreaStructQQ :: Type -> Doc
@@ -86,6 +88,7 @@ typeIvoryAreaStructQQ t = typeIvoryArea t
 typeIvoryType :: Type -> String
 typeIvoryType (StructType tn _) = "Struct \"" ++ userTypeStructName tn ++ "\""
 typeIvoryType (PrimType (Newtype tn _)) = userTypeModuleName tn
+typeIvoryType (PrimType (EnumType "bool_t" _ _)) = "IBool"
 typeIvoryType (PrimType (EnumType tn _ _)) = userTypeModuleName tn
 typeIvoryType (PrimType (AtomType a)) = case a of
   AtomInt Bits8  -> "Sint8"
@@ -268,6 +271,7 @@ data ImportType = LibraryType String
 
 importType :: Type -> ImportType
 importType (StructType n _) = UserType n
+importType (PrimType (EnumType "bool_t" _ _)) = NoImport
 importType (PrimType (EnumType n _ _)) = UserType n
 importType (PrimType (Newtype n _)) = UserType n
 importType (PrimType (AtomType _)) = NoImport
