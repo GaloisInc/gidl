@@ -20,9 +20,14 @@ script:
   - arm-none-eabi-gcc --version
   - make create-sandbox
   - make
-  - make test
+  - make $ENV_TEST_TARGET
 ghc:
   - 7.8
 branches:
   except:
     - /^wip.*$/
+env:
+  - ENV_TEST_TARGET=haskell-backend-test
+  - ENV_TEST_TARGET=rpc-backend-test
+  - ENV_TEST_TARGET=ivory-backend-test
+  - ENV_TEST_TARGET=tower-backend-test
