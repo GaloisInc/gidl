@@ -7,7 +7,7 @@ describing structured types and RPC-style interfaces.
 
 ## Overview
 
-[Jump right to an example of gidl.](https://github.com/galoisinc/gidl/tree/master/tests/example.idl)
+[Jump right to an example of gidl.](https://github.com/galoisinc/gidl/tree/master/tests/example.gidl)
 
 ### Types
 
@@ -45,7 +45,7 @@ on the wire by a hash of its name, its type, and all child types. Therefore
 ## IDL format
 
 The gidl IDL uses a s-expression based format. The IDL format currently is
-documented in `tests/example.idl`
+documented in `tests/example.gidl`
 
 ## Backends
 
@@ -99,9 +99,20 @@ The default target builds the gidl library. You can then use `cabal run gidl --
 information.
 
 Use the `test` target in the Makefile to generate and test each backend
-implementation. The `tests/example.idl` file is used as the input language.
+implementation. The `tests/example.gidl` file is used as the input language.
 You may then browse generated code for each implementation, which is generated
 and built in subdirectories of the `tests` directory.
+
+## Editor Modes
+
+There is a vim-mode available at [`pchickey/vim-gidl`](https://github.com/pchickey/vim-gidl).
+
+There is an emacs-mode available at [`aisamanra/gidl-mode`](https://github.com/aisamanra/gidl-mode)
+and through an elisp archive at [`http://gelpa.gdritter.com`](http://gelpa.gdritter.com).
+
+If an emacs user uses the emacs package manager, they can just add a line to
+their `.emacs` and then install it either interactively with `M-x package-list`
+or automatically with `(use-package gidl-mode :ensure t)`
 
 ## About
 

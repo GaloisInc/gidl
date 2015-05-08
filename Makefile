@@ -10,7 +10,7 @@ test: rpc-backend-test
 haskell-backend-test:
 	cabal run gidl -- -b haskell \
 		--debug \
-		-i tests/example.idl \
+		-i tests/example.gidl \
 		-o tests/gidl-haskell-backend-test \
 		-p gidl-haskell-backend-test \
 		-n Gidl.Haskell.Test
@@ -24,7 +24,7 @@ haskell-backend-test-clean:
 ivory-backend-test:
 	cabal run gidl -- -b ivory \
 		--debug \
-		-i tests/example.idl \
+		-i tests/example.gidl \
 		-o tests/gidl-ivory-backend-test \
 		-p gidl-ivory-backend-test \
 		-n Gidl.Ivory.Test
@@ -38,7 +38,7 @@ ivory-backend-test-clean:
 tower-backend-test:
 	cabal run gidl -- -b tower \
 		--debug \
-		-i tests/example.idl \
+		-i tests/example.gidl \
 		-o tests/gidl-tower-backend-test \
 		-p gidl-tower-backend-test \
 		-n Gidl.Test
@@ -53,7 +53,7 @@ rpc-backend-test:
 	cabal copy
 	cabal run gidl -- -b haskell-rpc \
 		--debug \
-		-i tests/example.idl \
+		-i tests/example.gidl \
 		-o tests/gidl-rpc-backend-test \
 		-p gidl-rpc-backend-test \
 		-n Gidl.Test
