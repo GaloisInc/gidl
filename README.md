@@ -105,8 +105,16 @@ and built in subdirectories of the `tests` directory.
 
 ## Editor Modes
 
+#### vim
 There is a vim-mode available at [`pchickey/vim-gidl`](https://github.com/pchickey/vim-gidl).
 
+If you use the vundle package manager, add the line `Package 'pchickey/vim-gidl'`
+to your `.vimrc`, then run `:BundleInstall`.
+
+If you use the Pathogen package manager, clone the `vim-gidl` repo into your
+`~/.vim/bundle` directory.
+
+#### emacs
 There is an emacs-mode available at [`aisamanra/gidl-mode`](https://github.com/aisamanra/gidl-mode)
 and through an elisp archive at [`http://gelpa.gdritter.com`](http://gelpa.gdritter.com).
 
