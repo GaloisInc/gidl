@@ -74,14 +74,17 @@ instance AttrNamed Attr where
 class AttrReadable p where
   attrState   :: (IvoryArea a, IvoryZero a) => p a -> Monitor e (Ref Global a)
   attrHandler :: (IvoryArea a, IvoryZero a) => p a -> Handler a e () -> Monitor e ()
+  attrReaderChan :: p a -> ChanOutput a
 
 instance AttrReadable AttrReader where
   attrState = attrReaderState
   attrHandler = attrReaderHandler
+  attrReaderChan = ar_chan
 
 instance AttrReadable Attr where
   attrState = attrReaderState . attr_reader
   attrHandler p k = attrReaderHandler (attr_reader p) k
+  attrReaderChan = attrReaderChan . attr_reader
 
 class AttrWritable p where
   attrEmitter :: (IvoryArea a, IvoryZero a) => p a -> Handler b e (Emitter a)
