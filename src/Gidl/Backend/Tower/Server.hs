@@ -109,7 +109,7 @@ attrsTowerConstructor i = typesig </> decl </> indent 2 body </> indent 2 ret
   decl = text "tower" <> constructor <+> text "ivals = do"
   body = stack
     [ text n <> text "_p <- towerAttr"
-       <+> dquotes (text aname)
+       <+> dquotes (text (aname ++ "_attr"))
        <+> parens (text n <+> text "ivals")
     | (aname, AttrMethod _ _)  <- interfaceMethods i
     , let n = userEnumValueName aname
