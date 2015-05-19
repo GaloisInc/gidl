@@ -1,33 +1,36 @@
 language: haskell
 before_install:
-  - sudo add-apt-repository -y ppa:terry.guo/gcc-arm-embedded
-  - sudo apt-get update -qq
-  - sudo apt-get install -y gcc-arm-none-eabi
-  - git clone https://github.com/galoisinc/ivory
-  - export IVORY_REPO=$PWD/ivory
-  - git clone https://github.com/galoisinc/tower
-  - export TOWER_REPO=$PWD/tower
-  - git clone https://github.com/galoisinc/ivory-tower-stm32
-  - export BSP_REPO=$PWD/ivory-tower-stm32
-  - git clone https://github.com/aisamanra/s-cargot
-  - export SCARGOT_REPO=$PWD/s-cargot
+- sudo add-apt-repository -y ppa:terry.guo/gcc-arm-embedded
+- sudo apt-get update -qq
+- sudo apt-get install -y gcc-arm-none-eabi
+- git clone https://github.com/galoisinc/ivory
+- export IVORY_REPO=$PWD/ivory
+- git clone https://github.com/galoisinc/tower
+- export TOWER_REPO=$PWD/tower
+- git clone https://github.com/galoisinc/ivory-tower-stm32
+- export BSP_REPO=$PWD/ivory-tower-stm32
+- git clone https://github.com/aisamanra/s-cargot
+- export SCARGOT_REPO=$PWD/s-cargot
 install:
-  - cabal install cabal-install
-  - cabal install alex happy
+- cabal install cabal-install
+- cabal install alex happy
 script:
-  - ghc --version
-  - cabal --version
-  - arm-none-eabi-gcc --version
-  - make create-sandbox
-  - make
-  - make $ENV_TEST_TARGET
+- ghc --version
+- cabal --version
+- arm-none-eabi-gcc --version
+- make create-sandbox
+- make
+- make $ENV_TEST_TARGET
 ghc:
-  - 7.8
+- 7.8
 branches:
   except:
-    - /^wip.*$/
+  - /^wip.*$/
 env:
-  - ENV_TEST_TARGET=haskell-backend-test
-  - ENV_TEST_TARGET=rpc-backend-test
-  - ENV_TEST_TARGET=ivory-backend-test
-  - ENV_TEST_TARGET=tower-backend-test
+- ENV_TEST_TARGET=haskell-backend-test
+- ENV_TEST_TARGET=rpc-backend-test
+- ENV_TEST_TARGET=ivory-backend-test
+- ENV_TEST_TARGET=tower-backend-test
+notifications:
+  slack:
+    secure: C3wT9S1Hv9sM/HHl8R7nej/Eb2xnSNTfQm1wpoW0zYqdnEMF7Dfy4taw1+PrE+oWaj8TD6HKSwpX7i+73hZNQkZzd3EjrNLOdnwcpfy0bAGs4mPHxkOUvqTP2Rm58pE8jj5q90Kd+L7R6RRDFC7js9CpsJ89F2QG/9HA06VN86Q=
