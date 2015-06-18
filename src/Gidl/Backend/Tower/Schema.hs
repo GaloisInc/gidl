@@ -122,7 +122,7 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     , indent 2 $ stack
         [ towerMonadDependencies
         , text "frame_ch <- channel"
-        , text "monitor" <+> dquotes (text (outputFuncName typeName))
+        , text "monitor" <+> dquotes (text (inputFuncName typeName))
             <+> text "$ do"
         , indent 2 $ stack
             [ text "handler" <+> parens (accessorName n <+> text "a")
