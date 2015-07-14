@@ -307,6 +307,7 @@ readAttr (attrname, (AttrMethod _ t)) suffix msg =
                      <+> text (constrName suffix msg)
                      <+> dot <+> text "SequenceNum.SequenceNum"
 
+    , text "Snap.modifyResponse $ Snap.setContentType \"application/json\""
     , text "Snap.writeLBS (encode resp)"
     ]
   where
