@@ -167,3 +167,13 @@ readwritableAttrServer val_lbl snum_lbl p get set = do
   return (snd get_response, snd set_response)
   where
   named n = attrName p ++ n
+
+attrProxy :: (AttrWritable w, AttrNamed w, IvoryArea a, IvoryZero a)
+          => w a
+          -> ChanOutput a
+          -> Tower e ()
+attrProxy attr chan = do
+  monitor (attrName attr ++ "Proxy") \$ do
+    handler chan ("write_" ++ attrName attr) \$ do
+      e <- attrEmitter attr
+      callback \$ \\v -> emit e v
