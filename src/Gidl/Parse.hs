@@ -1,20 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 
-module Gidl.Parse (parseDecls) where
+module Gidl.Parse (parseDecls, ppDecl) where
 
 import           Control.Applicative ((<$>), (<*>))
 import           Control.Monad ((>=>))
 import           Control.Monad.Reader (ask, lift, local, runReaderT)
 import           Data.List (partition, group, intercalate)
 import           Data.SCargot.Comments (withHaskellComments)
-import           Data.SCargot.General ( SExprSpec
-                                      , convertSpec
-                                      , decode
-                                      , encodeOne
-                                      , asWellFormed
-                                      )
-import           Data.SCargot.HaskLike (HaskLikeAtom(..), haskLikeSpec)
+import           Data.SCargot
+import           Data.SCargot.Language.HaskLike
 import           Data.SCargot.Repr.WellFormed
 import           Data.Text (unpack, pack)
 
@@ -139,11 +134,11 @@ toEnv decls = do
 parseDecls :: String -> Either String (TypeEnv, InterfaceEnv)
 parseDecls = return . pack >=> decode gidlSpec >=> toEnv
 
-gidlSpec :: SExprSpec HaskLikeAtom Decl
+gidlSpec :: SExprParser HaskLikeAtom Decl
 gidlSpec
   = withHaskellComments
-  $ convertSpec tDecl ppDecl
-  $ asWellFormed haskLikeSpec
+  $ setCarrier tDecl
+  $ asWellFormed haskLikeParser
 
 -- utility aliases and helpers
 type Parse a = WellFormedSExpr HaskLikeAtom -> Either String a
@@ -162,7 +157,8 @@ Left _ `asErr` msg = throw msg
 r      `asErr` _   = r
 
 seShow :: WellFormedSExpr HaskLikeAtom -> String
-seShow sx = "`" ++ unpack (encodeOne (asWellFormed haskLikeSpec) sx) ++ "`"
+seShow sx = "`" ++ unpack (encodeOne wf sx) ++ "`"
+  where wf = setFromCarrier fromWellFormed haskLikePrinter
 
 atShow :: WellFormedSExpr HaskLikeAtom -> String
 atShow e = go e ++ " " ++ seShow e
