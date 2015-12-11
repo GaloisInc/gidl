@@ -21,8 +21,6 @@ install:
 - export TOWER_REPO=$PWD/tower
 - git clone https://github.com/galoisinc/ivory-tower-stm32
 - export BSP_REPO=$PWD/ivory-tower-stm32
-- git clone https://github.com/aisamanra/s-cargot
-- export SCARGOT_REPO=$PWD/s-cargot
 script:
 - make create-sandbox
 - make

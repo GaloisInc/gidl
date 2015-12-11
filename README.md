@@ -68,12 +68,8 @@ Gidl currently has backends for:
 
 Gidl requires the GHC 7.8 haskell compiler, and a modern Cabal (>= 1.18).
 
-It also requires the [`s-cargot`][s-cargot] package, which is not yet available
-through hackage. In the parent directory, run
-
-```
-git clone https://github.com/aisamanra/s-cargot
-```
+It also requires the [`s-cargot`][s-cargot] package, which is available
+through hackage.
 
 [s-cargot]: https://github.com/aisamanra/s-cargot
 
