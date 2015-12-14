@@ -28,19 +28,25 @@ the following primitives:
     - Set of named fields. Corresponds to a record or a C struct.
     - Fields may be of any other user-defined type
 
+Gidl does not have any sort of sum types (tagged unions) because the Ivory
+language does not have support for sum types.
+
 ### Interfaces
 
 Gidl interfaces are composed of the following primitives:
-- Streams, which are sent from server to client whenever the server wants.
-  (We expect to refine this and allow clients to control stream rate.)
 - Attributes, which are read and written according to requests by the client.
   Attributes have a user defined read/writable permissions.
+- Streams, which are sent from server to client whenever the server wants.
+  Streams were never really thought through all the way, and no Gidl
+  implementation is expected to handle streams. They're still here because we
+  have not made time to remove them.
 
-Interfaces can be composed by subtyping.
-(We expect interface composition may change in the future.)
+Interfaces can be composed by subtyping. We regret this choice and should have
+known better. We would find a better way to compose interfaces if resources
+permitted.
 
 Protocol drift is detected by identifying each stream and attribute message
-on the wire by a hash of its name, its type, and all child types. Therefore
+on the wire by a hash of its name, its type, and all child types.
 
 ## IDL format
 
@@ -123,11 +129,14 @@ or automatically with `(use-package gidl-mode :ensure t)`
 Gidl was created at [Galois][] by Pat Hickey, with help from Getty Ritter and
 Trevor Elliott, as part of the [SMACCMPilot project][].
 
-Gidl was inspired in part by John Van Enk's excellent [Cauterize][] tools. Look
-for gidl to switch to using cauterize as the type language in the future!
+Gidl was inspired in part by John Van Enk's excellent [Cauterize][] tools. If
+engineering resources and time had permitted, we would have added unions to the
+Ivory language, so that we could make a Cauterize backend for Ivory. Instead, we
+got Gidl.
 
-Gidl is still experimental - anything may change at any time. Please get in
-touch if you're interested in using or working on gidl.
+If you find yourself making serious use of Gidl, please get in touch so we may
+apologize for its many shortcomings, and recommend that you use Cauterize
+instead.
 
 [Galois]: https://galois.com
 [SMACCMPilot project]: https://smaccmpilot.org
