@@ -1,8 +1,8 @@
-
 module Gidl.Backend.Ivory.Test where
 
+import Prelude ()
+import Prelude.Compat
 
-import Data.Monoid
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Schema

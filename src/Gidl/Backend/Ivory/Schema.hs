@@ -62,18 +62,18 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     , indent 2 $ encloseStack lbrace rbrace comma
         [ text (accessorName n) <+> colon <> colon
            <+> parens (text "forall s r b s' . ConstRef s'"
-             <+> typeIvoryArea t
-             <+> text "-> Ivory ('Effects r b (Scope s)) IBool")
+             <+> typeIvoryArea Embedded t
+             <+> text "-> Ivory ('Effects r b ('Scope s)) IBool")
         | (_, (Message n t)) <- schema
         ]
     , empty
     , text (parserName typeName) <+> align
         (stack [ text ":: forall s0 r b s2 s3 n"
                , text " . (ANat n)"
-               , text "=> ConstRef s2 (Array n (Stored Uint8))"
-               , text "-> Ref s3 (Stored Uint32)"
+               , text "=> ConstRef s2 ('Array n ('Stored Uint8))"
+               , text "-> Ref s3 ('Stored Uint32)"
                , text "->" <+> text typeName
-               , text "-> Ivory ('Effects r b (Scope s0)) IBool"
+               , text "-> Ivory ('Effects r b ('Scope s0)) IBool"
                ])
     , text (parserName typeName) <+> text "arr offs iface = do"
     , indent 2 $ stack
@@ -90,8 +90,8 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     , text (senderName typeName) <+> align
         (stack [ text ":: forall n s1 s2"
                , text " . (ANat n)"
-               , text "=> Ref s1 (Array n (Stored Uint8))"
-               , text "-> Ref s2 (Stored Uint32)"
+               , text "=> Ref s1 ('Array n ('Stored Uint8))"
+               , text "-> Ref s2 ('Stored Uint32)"
                , text "->" <+> constructor
                ])
     , text (senderName typeName) <+> text "arr offs" <+> equals
@@ -100,14 +100,14 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
         [ text (accessorName n) <+> equals <+> text "\\m -> do" </> indent 4
             (stack [ text "o <- deref offs"
                    , text "let required_size = fromInteger (packSize (packRep :: PackRep"
-                       <+> typeIvoryArea t <+> text ")"
-                       <+> text "+ packSize (packRep :: PackRep (Stored Uint32)))"
+                       <+> typeIvoryArea Embedded t <+> text ")"
+                       <+> text "+ packSize (packRep :: PackRep ('Stored Uint32)))"
                    , text "    sufficient_space = (o + required_size) <? arrayLen arr"
                    , text "when sufficient_space $ do"
                    , indent 2 $ stack
                        [ text "ident <- local (ival (" <+> ppr h <+> text ":: Uint32))"
                        , text "packInto arr o (constRef ident)"
-                       , text "packInto arr (o + fromInteger (packSize (packRep :: PackRep (Stored Uint32)))) m"
+                       , text "packInto arr (o + fromInteger (packSize (packRep :: PackRep ('Stored Uint32)))) m"
                        , text "offs += required_size"
                        ]
                    , text "return sufficient_space"

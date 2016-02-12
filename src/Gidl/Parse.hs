@@ -1,17 +1,20 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 module Gidl.Parse (parseDecls, ppDecl) where
 
-import           Control.Applicative ((<$>), (<*>))
-import           Control.Monad ((>=>))
-import           Control.Monad.Reader (ask, lift, local, runReaderT)
-import           Data.List (partition, group, intercalate)
-import           Data.SCargot.Comments (withHaskellComments)
-import           Data.SCargot
-import           Data.SCargot.Language.HaskLike
-import           Data.SCargot.Repr.WellFormed
-import           Data.Text (unpack, pack)
+import Prelude ()
+import Prelude.Compat
+
+import Control.Monad ((>=>))
+import Control.Monad.Reader (ask, lift, local, runReaderT)
+import Data.List (partition, group, intercalate)
+import Data.SCargot.Comments (withHaskellComments)
+import Data.SCargot
+import Data.SCargot.Language.HaskLike
+import Data.SCargot.Repr.WellFormed
+import Data.Text (unpack, pack)
 
 import Gidl.Types
 import Gidl.Interface

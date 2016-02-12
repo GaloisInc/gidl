@@ -1,8 +1,9 @@
 
 module Gidl.Backend.Haskell.Test where
 
+import Prelude ()
+import Prelude.Compat
 
-import Data.Monoid
 import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Haskell.Interface

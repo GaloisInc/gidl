@@ -5,6 +5,7 @@ import Ivory.Artifact.Template
 
 import Data.Char (isSpace)
 import Data.List (intercalate, nub)
+import Text.PrettyPrint.Mainland
 
 import qualified Paths_gidl as P
 
@@ -14,41 +15,33 @@ import Gidl.Backend.Cabal
 import Gidl.Backend.Ivory.Types
 import Gidl.Backend.Ivory.Schema
 
-ivoryBackend :: [Interface] -> String -> String -> [Artifact]
-ivoryBackend iis pkgname namespace_raw =
+ivoryBackend :: FilePath -> [Interface] -> String -> String -> [Artifact]
+ivoryBackend ivoryRepo iis pkgname namespace_raw =
   [ cabalFileArtifact cf
-  , makefile
-  , artifactCabalFile P.getDataDir "Makefile.sandbox"
-  , depsfile
+  , makefile cg_exe_name
+  , stackfile ivoryRepo
   , artifactPath "tests" $ codegenTest namespace
   ] ++ map (artifactPath "src") sources
   where
   sources = ivorySources iis namespace
   namespace = dotwords namespace_raw
 
-  cf = (defaultCabalFile pkgname cabalmods cabalDeps) { executables = [ cg_exe ] }
-  cg_exe = defaultCabalExe (pkgname ++ "-gen") "CodeGen.hs"
-              (cabalDeps ++ cabalExeDeps ++ [pkgname])
+  cf = (defaultCabalFile pkgname cabalmods ivoryDeps) { executables = [ cg_exe ] }
+  cg_exe = defaultCabalExe cg_exe_name "CodeGen.hs"
+              (ivoryDeps ++ ivoryTestDeps ++ [pkgname])
+  cg_exe_name = pkgname ++ "-gen"
   cabalmods = map (filePathToPackage . artifactFileName) sources
-  (makeDeps, cabalDeps) = unzip ivoryDeps
-  (makeExeDeps, cabalExeDeps) = unzip ivoryTestDeps
 
-  sandwich a b c = a ++ c ++ b
-  depsfile = artifactString "Makefile.deps" $ unlines $
-    sandwich ["$(call add-cabal-package-source, \\"] [")"] $
-    map (sandwich "  " " \\") $
-    makeDeps ++ makeExeDeps
-
-ivoryDeps :: [(String, String)]
+ivoryDeps :: [String]
 ivoryDeps =
-  [ ("$(IVORY_REPO)/ivory", "ivory")
-  , ("$(IVORY_REPO)/ivory-serialize", "ivory-serialize")
-  , ("$(IVORY_REPO)/ivory-stdlib", "ivory-stdlib")
+  [ "ivory"
+  , "ivory-serialize"
+  , "ivory-stdlib"
   ]
 
-ivoryTestDeps :: [(String, String)]
+ivoryTestDeps :: [String]
 ivoryTestDeps =
-  [ ("$(IVORY_REPO)/ivory-backend-c", "ivory-backend-c")
+  [ "ivory-backend-c"
   ]
 
 ivorySources :: [Interface] -> [String] -> [Artifact]
@@ -71,8 +64,33 @@ dotwords s = case dropWhile isDot s of
   where
   isDot c = (c == '.') || isSpace c
 
-makefile :: Artifact
-makefile = artifactCabalFile P.getDataDir "support/ivory/Makefile"
+makefile :: FilePath -> Artifact
+makefile cg_exe_name =
+  artifactCabalFileTemplate P.getDataDir "support/ivory/Makefile.template"
+    [("exe_name", cg_exe_name)]
+
+stackfile :: FilePath -> Artifact
+stackfile ivory = artifactText "stack.yaml" $
+  prettyLazyText 1000 $ stack
+    [ text "resolver: lts-2.22"
+    , empty
+    , text "packages:"
+    , text "- '.'"
+    , text ("- location: " ++ ivory)
+    , text "  extra-dep: true"
+    , text "  subdirs:"
+    , text "    - ivory"
+    , text "    - ivory-artifact"
+    , text "    - ivory-backend-c"
+    , text "    - ivory-opts"
+    , text "    - ivory-serialize"
+    , text "    - ivory-stdlib"
+    , empty
+    , text "extra-deps:"
+    , text "  - ghc-srcspan-plugin-0.2.1.0"
+    , empty
+    ]
+
 
 codegenTest :: [String] -> Artifact
 codegenTest modulepath =

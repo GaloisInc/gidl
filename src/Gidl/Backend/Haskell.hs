@@ -17,6 +17,7 @@ haskellBackend :: [Interface] -> String -> String -> [Artifact]
 haskellBackend iis pkgname namespace_raw =
   [ cabalFileArtifact cf
   , makefile
+  , stackfile
   , artifactPath "tests" serializeTestMod
   ] ++
   [ artifactPath "src" m | m <- sourceMods
@@ -52,14 +53,19 @@ makefile :: Artifact
 makefile = artifactText "Makefile" $
   prettyLazyText 1000 $ stack
     [ text "default:"
-    , text "\tcabal build"
-    , empty
-    , text "create-sandbox:"
-    , text "\tcabal sandbox init"
-    , text "\tcabal install --enable-tests --dependencies-only"
+    , text "\tstack --stack-yaml stack.yaml build ."
     , empty
     , text "test:"
-    , text "\tcabal test"
+    , text "\tstack --stack-yaml stack.yaml test ."
     , empty
     ]
 
+stackfile :: Artifact
+stackfile = artifactText "stack.yaml" $
+  prettyLazyText 1000 $ stack
+    [ text "resolver: lts-2.22"
+    , empty
+    , text "packages:"
+    , text "- '.'"
+    , empty
+    ]

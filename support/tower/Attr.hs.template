@@ -28,7 +28,7 @@ data Attr a =
     }
 
 attrReaderState :: (IvoryArea a, IvoryZero a)
-                => AttrReader a -> Monitor e (Ref Global a)
+                => AttrReader a -> Monitor e (Ref 'Global a)
 attrReaderState ar@AttrReader{..} = do
   s <- stateInit ar_name ar_ival
   attrReaderHandler ar \$ do
@@ -72,7 +72,7 @@ instance AttrNamed Attr where
   attrName = attrName . attr_reader
 
 class AttrReadable p where
-  attrState   :: (IvoryArea a, IvoryZero a) => p a -> Monitor e (Ref Global a)
+  attrState   :: (IvoryArea a, IvoryZero a) => p a -> Monitor e (Ref 'Global a)
   attrHandler :: (IvoryArea a, IvoryZero a) => p a -> Handler a e () -> Monitor e ()
   attrReaderChan :: p a -> ChanOutput a
 
@@ -97,12 +97,12 @@ instance AttrWritable Attr where
 
 
 readableAttrServer :: ( IvoryArea a, IvoryZero a
-                      , IvoryArea (Struct b), IvoryZero (Struct b), IvoryStruct b)
+                      , IvoryArea ('Struct b), IvoryZero ('Struct b), IvoryStruct b)
                    => Label b a
-                   -> Label b (Stored SequenceNum)
+                   -> Label b ('Stored SequenceNum)
                    -> Attr a
-                   -> ChanOutput (Stored SequenceNum)
-                   -> Tower e (ChanOutput (Struct b))
+                   -> ChanOutput ('Stored SequenceNum)
+                   -> Tower e (ChanOutput ('Struct b))
 readableAttrServer val_lbl snum_lbl p get = do
   get_response <- channel
   monitor (named "Server") \$ do
@@ -119,12 +119,12 @@ readableAttrServer val_lbl snum_lbl p get = do
   named n = attrName p ++ n
 
 writableAttrServer :: (IvoryArea a, IvoryZero a
-                      , IvoryArea (Struct b), IvoryZero (Struct b), IvoryStruct b)
+                      , IvoryArea ('Struct b), IvoryZero ('Struct b), IvoryStruct b)
                    => Label b a
-                   -> Label b (Stored SequenceNum)
+                   -> Label b ('Stored SequenceNum)
                    -> Attr a
-                   -> ChanOutput (Struct b)
-                   -> Tower e (ChanOutput (Stored SequenceNum))
+                   -> ChanOutput ('Struct b)
+                   -> Tower e (ChanOutput ('Stored SequenceNum))
 writableAttrServer val_lbl snum_lbl p set = do
   set_response <- channel
   monitor (named "Server") \$ do
@@ -139,13 +139,13 @@ writableAttrServer val_lbl snum_lbl p set = do
   named n = attrName p ++ n
 
 readwritableAttrServer :: ( IvoryArea a, IvoryZero a
-                          , IvoryArea (Struct b), IvoryZero (Struct b), IvoryStruct b)
+                          , IvoryArea ('Struct b), IvoryZero ('Struct b), IvoryStruct b)
                        => Label b a
-                       -> Label b (Stored SequenceNum)
+                       -> Label b ('Stored SequenceNum)
                        -> Attr a
-                       -> ChanOutput (Stored SequenceNum)
-                       -> ChanOutput (Struct b)
-                       -> Tower e (ChanOutput (Struct b), ChanOutput (Stored SequenceNum))
+                       -> ChanOutput ('Stored SequenceNum)
+                       -> ChanOutput ('Struct b)
+                       -> Tower e (ChanOutput ('Struct b), ChanOutput ('Stored SequenceNum))
 readwritableAttrServer val_lbl snum_lbl p get set = do
   get_response <- channel
   set_response <- channel

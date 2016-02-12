@@ -93,7 +93,7 @@ attrsDataType i = text "data" <+> constructor <+> text "(p :: Area * -> *) ="
   constructor = text (ifModuleName i) <> text "Attrs"
   body = encloseStack lbrace rbrace comma
     [ text n <+> colon <> colon <+> text "p"
-                 <+> typeIvoryArea t
+                 <+> typeIvoryArea Embedded t
     | (aname, AttrMethod _ t)  <- interfaceMethods i
     , let n = userEnumValueName aname
     ]

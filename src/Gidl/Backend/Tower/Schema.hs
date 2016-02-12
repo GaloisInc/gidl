@@ -64,13 +64,13 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     , text "data" <+> constructor<+> equals <+> constructor
     , indent 2 $ encloseStack lbrace rbrace comma
         [ accessorName n <+> colon <> colon
-           <+> text "ChanOutput" <+> typeIvoryArea t
+           <+> text "ChanOutput" <+> typeIvoryArea Embedded t
         | (_, (Message n t)) <- schema
         ]
     , empty
     , text (inputFuncName typeName) <+> align
         (stack [ text ":: (ANat n)"
-               , text "=> ChanOutput (Array n (Stored Uint8))"
+               , text "=> ChanOutput ('Array n ('Stored Uint8))"
                , text "-> Tower e" <+> constructor
                ])
     , text (inputFuncName typeName) <+> text "frame_ch" <+> equals <+> text "do"
@@ -116,7 +116,7 @@ schemaDoc interfaceName (Schema schemaName schema) = stack
     , text (outputFuncName typeName) <> align
         (stack [ text ":: (ANat n)"
                , text "=>" <+> constructor
-               , text "-> Tower e (ChanOutput (Array n (Stored Uint8)))"
+               , text "-> Tower e (ChanOutput ('Array n ('Stored Uint8)))"
                ])
     , text (outputFuncName typeName) <+> text "a" <+> equals <+> text "do"
     , indent 2 $ stack

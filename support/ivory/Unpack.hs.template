@@ -10,10 +10,10 @@ import Ivory.Stdlib
 
 unpackWithCallback :: forall n a s1 s2 r b s0
                     . (ANat n, IvorySizeOf a, IvoryArea a, IvoryZero a, Packable a)
-                   => ConstRef s1 (Array n (Stored Uint8))
-                   -> Ref s2 (Stored Uint32)
-                   -> (ConstRef (Stack s0) a -> Ivory ('Effects r b (Scope s0)) IBool)
-                   -> Ivory ('Effects r b (Scope s0)) IBool
+                   => ConstRef s1 ('Array n ('Stored Uint8))
+                   -> Ref s2 ('Stored Uint32)
+                   -> (ConstRef ('Stack s0) a -> Ivory ('Effects r b ('Scope s0)) IBool)
+                   -> Ivory ('Effects r b ('Scope s0)) IBool
 unpackWithCallback arr offs k = do
   o <- deref offs
   rv <- local (ival false)

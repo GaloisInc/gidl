@@ -33,9 +33,10 @@ import Text.PrettyPrint.Mainland
 
 rpcBackend :: [Interface] -> String -> String -> [Artifact]
 rpcBackend iis pkgName nsStr =
-    cabalFileArtifact (defaultCabalFile pkgName modules buildDeps)
-  : artifactCabalFile P.getDataDir "support/rpc/Makefile"
-  : map (artifactPath "src") sourceMods
+  [ cabalFileArtifact (defaultCabalFile pkgName modules buildDeps)
+  , artifactCabalFile P.getDataDir "support/rpc/Makefile"
+  , stackfile
+  ] ++  map (artifactPath "src") sourceMods
 
   where
 
@@ -58,6 +59,15 @@ rpcBackend iis pkgName nsStr =
                         , rpcModule namespace i ]
                       | i <- iis
                       ]
+  stackfile = artifactText "stack.yaml" $
+    prettyLazyText 1000 $ stack
+      [ text "resolver: lts-2.22"
+      , empty
+      , text "packages:"
+      , text "- '.'"
+      , empty
+      ]
+
 
 
 rpcBaseModule :: [String] -> Artifact

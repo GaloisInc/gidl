@@ -1,9 +1,5 @@
 default:
-	cabal build
-
-create-sandbox:
-	cabal sandbox init
-	cabal install --enable-tests --dependencies-only
+	stack --stack-yaml stack.yaml build .
 
 test:
 	@echo "RPC backend has no test suite."

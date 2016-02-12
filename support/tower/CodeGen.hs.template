@@ -17,5 +17,5 @@ main = compileTowerSTM32FreeRTOS id p app
 
 app :: Tower e ()
 app = do
-  (c :: (ChanInput (Array 80 (Stored Uint8)), ChanOutput (Array 80 (Stored Uint8)))) <- channel
+  (c :: (ChanInput ('Array 80 ('Stored Uint8)), ChanOutput ('Array 80 ('Stored Uint8)))) <- channel
   $app_body$

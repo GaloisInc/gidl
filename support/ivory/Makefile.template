@@ -1,0 +1,5 @@
+default:
+	stack --stack-yaml stack.yaml build .
+
+test:
+	stack --stack-yaml stack.yaml build . --exec '$exe_name$ --src-dir=codegen-out'

@@ -75,18 +75,32 @@ typeImportedIvoryType t@(PrimType (EnumType tn _ _)) =
   userTypeModuleName tn ++ "." ++ typeIvoryType t
 typeImportedIvoryType t = typeIvoryType t
 
-typeIvoryArea :: Type -> Doc
-typeIvoryArea t@(StructType _ _) = parens (text (typeIvoryType t))
-typeIvoryArea t@(PrimType (AtomType _)) = parens (text "Stored" <+> text (typeIvoryType t))
-typeIvoryArea t@(PrimType (EnumType "bool_t" _ _)) = parens (text "Stored" <+> text (typeIvoryType t))
-typeIvoryArea t@(PrimType _) = parens (text "Stored" <+> text (typeIvoryType t) <> dot <> text (typeIvoryType t))
+-- | The context determines whether we format promoted types with or
+-- without tick marks
+data SyntaxContext = Concrete | Embedded deriving Show
+
+typeIvoryArea :: SyntaxContext -> Type -> Doc
+typeIvoryArea sc t =
+  case t of
+    StructType _ _ ->
+      parens (text (typeIvoryType t))
+    PrimType (AtomType _) ->
+      parens (text stored <+> text (typeIvoryType t))
+    PrimType (EnumType "bool_t" _ _) ->
+      parens (text stored <+> text (typeIvoryType t))
+    PrimType _ ->
+      parens (text stored <+> text (typeIvoryType t) <> dot <> text (typeIvoryType t))
+  where
+    stored = case sc of
+      Concrete -> "Stored"
+      Embedded -> "'Stored"
 
 typeIvoryAreaStructQQ :: Type -> Doc
 typeIvoryAreaStructQQ (StructType n _) = text "Struct" <+> text (userTypeStructName n)
-typeIvoryAreaStructQQ t = typeIvoryArea t
+typeIvoryAreaStructQQ t = typeIvoryArea Concrete t
 
 typeIvoryType :: Type -> String
-typeIvoryType (StructType tn _) = "Struct \"" ++ userTypeStructName tn ++ "\""
+typeIvoryType (StructType tn _) = "'Struct \"" ++ userTypeStructName tn ++ "\""
 typeIvoryType (PrimType (Newtype tn _)) = userTypeModuleName tn
 typeIvoryType (PrimType (EnumType "bool_t" _ _)) = "IBool"
 typeIvoryType (PrimType (EnumType tn _ _)) = userTypeModuleName tn
@@ -178,7 +192,7 @@ typeDecl t@(StructType tname ss) = stack
 
   ]
   where
-  storedType = parens (text "Struct" <+> dquotes structname)
+  storedType = parens (text "'Struct" <+> dquotes structname)
   structname = text (userTypeStructName tname)
   packRep = text "pack" <> text (userTypeModuleName tname)
 
@@ -213,7 +227,7 @@ typeDecl t@(PrimType (Newtype tname n)) = stack
   ]
   where
   typename = userTypeModuleName tname
-  storedType = parens (text "Stored" <+> text typename)
+  storedType = parens (text "'Stored" <+> text typename)
   packRep = text "pack" <> text typename
 
 typeDecl t@(PrimType (EnumType tname s es)) = stack
@@ -252,7 +266,7 @@ typeDecl t@(PrimType (EnumType tname s es)) = stack
   where
   typename = userTypeModuleName tname
   packRep = text "pack" <> text typename
-  storedType = parens (text "Stored" <+> text typename)
+  storedType = parens (text "'Stored" <+> text typename)
   bt = case s of
     Bits8 -> "Uint8"
     Bits16 -> "Uint16"
