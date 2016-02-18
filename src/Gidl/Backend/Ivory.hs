@@ -72,7 +72,7 @@ makefile cg_exe_name =
 stackfile :: FilePath -> Artifact
 stackfile ivory = artifactText "stack.yaml" $
   prettyLazyText 1000 $ stack
-    [ text "resolver: lts-5.1"
+    [ text "resolver: lts-5.3"
     , empty
     , text "packages:"
     , text "- '.'"
@@ -87,7 +87,13 @@ stackfile ivory = artifactText "stack.yaml" $
     , text "    - ivory-stdlib"
     , empty
     , text "extra-deps:"
+    , text "  - exception-mtl-0.4"
     , text "  - ghc-srcspan-plugin-0.2.1.0"
+    , text "  - language-c-quote-0.11.4"
+    , text "  - mainland-pretty-0.4.1.2"
+    , text "  - symbol-0.2.4"
+    , empty
+    , text "install-ghc: true"
     , empty
     ]
 
