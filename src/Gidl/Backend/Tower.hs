@@ -76,7 +76,7 @@ makefile cg_exe_name =
 stackfile :: FilePath -> FilePath -> FilePath -> Artifact
 stackfile ivoryRepo towerRepo ivoryTowerSTM32Repo = artifactText "stack.yaml" $
   prettyLazyText 1000 $ stack
-    [ text "resolver: lts-2.22"
+    [ text "resolver: lts-5.3"
     , empty
     , text "packages:"
     , text "- '.'"
@@ -104,7 +104,13 @@ stackfile ivoryRepo towerRepo ivoryTowerSTM32Repo = artifactText "stack.yaml" $
     , text "    - tower-freertos-stm32"
     , empty
     , text "extra-deps:"
+    , text "  - exception-mtl-0.4"
     , text "  - ghc-srcspan-plugin-0.2.1.0"
+    , text "  - language-c-quote-0.11.4"
+    , text "  - mainland-pretty-0.4.1.2"
+    , text "  - symbol-0.2.4"
+    , empty
+    , text "install-ghc: true"
     , empty
     ]
 
