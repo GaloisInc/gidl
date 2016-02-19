@@ -18,7 +18,9 @@ umbrellaModule modulepath i =
   artifactText (ifModuleName i ++ ".hs") $
   prettyLazyText 1000 $
   stack
-    [ text "module" <+> mname
+    [ text "{-# OPTIONS_GHC -fno-warn-unused-imports #-}"
+    , text "{-# OPTIONS_GHC -fno-warn-dodgy-exports #-}"
+    , text "module" <+> mname
     , indent 2 $ encloseStack lparen (rparen <+> text "where") comma
         [ text "module" <+> im "Producer"
         , text "module" <+> im "Consumer"
@@ -190,8 +192,12 @@ interfaceServer i =
   decl = fname <+> guardEmptySchema (consumerSchema i)
                                     (constructor "Consumer{..}")
                                     empty
-               <+> constructor "Attrs{..}"
-               <+> constructor "Streams{..}"
+               <+> guardEmptyAttrs i
+                     (constructor "Attrs{..}")
+                     (constructor "Attrs")
+               <+> guardEmptyStreams i
+                     (constructor "Streams{..}")
+                     (constructor "Streams")
                <+> equals <+> text "do"
   body = stack [ methodBody (text (userEnumValueName n)) m
                | (n,m) <- interfaceMethods i ]
@@ -223,3 +229,18 @@ guardEmptySchema :: Schema -> Doc -> Doc -> Doc
 guardEmptySchema (Schema _ []) _ d = d
 guardEmptySchema (Schema _ _) d _ = d
 
+-- | Include the first 'Doc' if the interface has stream methods,
+-- otherwise include the second.
+guardEmptyStreams :: Interface -> Doc -> Doc -> Doc
+guardEmptyStreams i d1 d2 = d
+  where
+    d = if null sms then d2 else d1
+    sms = [ m | m@(_, StreamMethod _ _) <- interfaceMethods i ]
+
+-- | Include the first 'Doc' if the interface has attr methods,
+-- otherwise include the second.
+guardEmptyAttrs :: Interface -> Doc -> Doc -> Doc
+guardEmptyAttrs i d1 d2 = d
+  where
+    d = if null sms then d2 else d1
+    sms = [ m | m@(_, AttrMethod _ _) <- interfaceMethods i ]
