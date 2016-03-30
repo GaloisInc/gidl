@@ -2,4 +2,4 @@ default:
 	stack --stack-yaml stack.yaml build .
 
 test:
-	stack --stack-yaml stack.yaml build . --exec '$exe_name$ --src-dir=codegen-out'
+	stack --stack-yaml stack.yaml test --test-arguments '--src-dir=codegen-out'

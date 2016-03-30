@@ -20,7 +20,7 @@ towerBackend :: FilePath -> FilePath -> FilePath
              -> [Interface] -> String -> String -> [Artifact]
 towerBackend ivoryRepo towerRepo ivoryTowerSTM32Repo iis pkgname namespace_raw =
   [ cabalFileArtifact cf
-  , makefile cg_exe_name
+  , makefile
   , stackfile ivoryRepo towerRepo ivoryTowerSTM32Repo
   , defaultconf
   , artifactPath "tests" (codegenTest iis namespace)
@@ -36,11 +36,11 @@ towerBackend ivoryRepo towerRepo ivoryTowerSTM32Repo iis pkgname namespace_raw =
 
   isources = ivorySources iis (namespace ++ ["Ivory"])
 
-  cf = (defaultCabalFile pkgname cabalmods towerDeps) { executables = [ cg_exe ] }
+  cf = (defaultCabalFile pkgname cabalmods towerDeps) { tests = [ cg_test ] }
   cabalmods = map (filePathToPackage . artifactFileName) sources
-  cg_exe = defaultCabalExe cg_exe_name "CodeGen.hs"
+  cg_test = defaultCabalTest cg_test_name "CodeGen.hs"
             (towerDeps ++ towerTestDeps ++ [pkgname])
-  cg_exe_name = pkgname ++ "-gen"
+  cg_test_name = pkgname ++ "-gen"
 
 towerDeps :: [String]
 towerDeps =
@@ -68,10 +68,9 @@ towerSources iis namespace = towerInterfaces
     | i <- iis ]
   ifnamespace = namespace ++ ["Interface"]
 
-makefile :: FilePath -> Artifact
-makefile cg_exe_name =
-  artifactCabalFileTemplate P.getDataDir "support/tower/Makefile.template"
-    [("exe_name", cg_exe_name)]
+makefile :: Artifact
+makefile =
+  artifactCabalFileTemplate P.getDataDir "support/tower/Makefile.template" []
 
 stackfile :: FilePath -> FilePath -> FilePath -> Artifact
 stackfile ivoryRepo towerRepo ivoryTowerSTM32Repo = artifactText "stack.yaml" $
