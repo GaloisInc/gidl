@@ -76,7 +76,7 @@ makefile cg_exe_name =
 stackfile :: FilePath -> FilePath -> FilePath -> Artifact
 stackfile ivoryRepo towerRepo ivoryTowerSTM32Repo = artifactText "stack.yaml" $
   prettyLazyText 1000 $ stack
-    [ text "resolver: lts-5.3"
+    [ text "resolver: lts-5.13"
     , empty
     , text "packages:"
     , text "- '.'"
