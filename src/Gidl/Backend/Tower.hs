@@ -95,6 +95,7 @@ stackfile ivoryRepo towerRepo ivoryTowerSTM32Repo = artifactText "stack.yaml" $
     , text "    - tower"
     , text "    - tower-config"
     , text "    - tower-hal"
+    , text "    - tower-opts"
     , text ("- location: " ++ ivoryTowerSTM32Repo)
     , text "  extra-dep: true"
     , text "  subdirs:"
