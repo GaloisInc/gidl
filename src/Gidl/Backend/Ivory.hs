@@ -72,7 +72,7 @@ makefile cg_exe_name =
 stackfile :: FilePath -> Artifact
 stackfile ivory = artifactText "stack.yaml" $
   prettyLazyText 1000 $ stack
-    [ text "resolver: lts-5.13"
+    [ text "resolver: lts-6.3"
     , empty
     , text "packages:"
     , text "- '.'"

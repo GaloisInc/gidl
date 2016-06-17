@@ -61,7 +61,7 @@ rpcBackend iis pkgName nsStr =
                       ]
   stackfile = artifactText "stack.yaml" $
     prettyLazyText 1000 $ stack
-      [ text "resolver: lts-5.13"
+      [ text "resolver: lts-6.3"
       , empty
       , text "packages:"
       , text "- '.'"
