@@ -18,7 +18,7 @@ import Gidl.Backend.Ivory.Schema
 ivoryBackend :: FilePath -> [Interface] -> String -> String -> [Artifact]
 ivoryBackend ivoryRepo iis pkgname namespace_raw =
   [ cabalFileArtifact cf
-  , makefile cg_exe_name
+  , makefile
   , stackfile ivoryRepo
   , artifactPath "tests" $ codegenTest namespace
   ] ++ map (artifactPath "src") sources
@@ -26,10 +26,10 @@ ivoryBackend ivoryRepo iis pkgname namespace_raw =
   sources = ivorySources iis namespace
   namespace = dotwords namespace_raw
 
-  cf = (defaultCabalFile pkgname cabalmods ivoryDeps) { executables = [ cg_exe ] }
-  cg_exe = defaultCabalExe cg_exe_name "CodeGen.hs"
+  cf = (defaultCabalFile pkgname cabalmods ivoryDeps) { tests = [ cg_test ] }
+  cg_test = defaultCabalTest cg_test_name "CodeGen.hs"
               (ivoryDeps ++ ivoryTestDeps ++ [pkgname])
-  cg_exe_name = pkgname ++ "-gen"
+  cg_test_name = pkgname ++ "-gen"
   cabalmods = map (filePathToPackage . artifactFileName) sources
 
 ivoryDeps :: [String]
@@ -64,10 +64,9 @@ dotwords s = case dropWhile isDot s of
   where
   isDot c = (c == '.') || isSpace c
 
-makefile :: FilePath -> Artifact
-makefile cg_exe_name =
-  artifactCabalFileTemplate P.getDataDir "support/ivory/Makefile.template"
-    [("exe_name", cg_exe_name)]
+makefile :: Artifact
+makefile =
+  artifactCabalFileTemplate P.getDataDir "support/ivory/Makefile.template" []
 
 stackfile :: FilePath -> Artifact
 stackfile ivory = artifactText "stack.yaml" $
