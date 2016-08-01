@@ -75,7 +75,7 @@ makefile =
 stackfile :: FilePath -> FilePath -> FilePath -> Artifact
 stackfile ivoryRepo towerRepo ivoryTowerSTM32Repo = artifactText "stack.yaml" $
   prettyLazyText 1000 $ stack
-    [ text "resolver: lts-6.3"
+    [ text "resolver: lts-6.10"
     , empty
     , text "packages:"
     , text "- '.'"

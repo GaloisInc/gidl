@@ -63,7 +63,7 @@ makefile = artifactText "Makefile" $
 stackfile :: Artifact
 stackfile = artifactText "stack.yaml" $
   prettyLazyText 1000 $ stack
-    [ text "resolver: lts-6.3"
+    [ text "resolver: lts-6.10"
     , empty
     , text "packages:"
     , text "- '.'"
