@@ -5,9 +5,11 @@
 
 module $module_path$.Base where
 
+import qualified Data.ByteString.Lazy as LBS
 import           Data.Word (Word32)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import           Data.Time
 import           Control.Applicative ((<|>))
 import           Control.Concurrent (forkIO)
 import           Control.Concurrent.STM
@@ -16,7 +18,12 @@ import           Control.Concurrent.STM
                      ,TMVar,newEmptyTMVarIO,takeTMVar,putTMVar,newTVarIO
                      ,modifyTVar)
 import           Control.Monad (forever)
-import           Snap.Core (Snap)
+import           Control.Monad.IO.Class (liftIO)
+import           System.IO
+                     (openFile,hFlush,hPutStr,hPutStrLn,IOMode(WriteMode)
+                     ,Handle)
+import           Snap.Core (MonadSnap,Snap)
+import qualified Snap.Core as Snap
 import qualified Snap.Http.Server as HTTP
 import           Snap.Util.FileServe (serveDirectory)
 
@@ -27,8 +34,8 @@ data Config = Config { cfgPort :: !Int
                        -- ^ Content to be served off of the root, relative to
                        -- the directory that the server was started in
 
-                     , cfgJsonLogFile :: Maybe FilePath
-                       -- ^ File to log JSON responses to
+                     , cfgLogSuffix :: Maybe FilePath
+                       -- ^ Suffix for the JSON response log file
                      } deriving (Show)
 
 -- | A default @Config@ value that will produce a server that runs on port 8080,
@@ -37,7 +44,7 @@ defaultConfig :: Config
 defaultConfig  = Config {
     cfgPort = 8080
   , cfgStaticDir = Nothing
-  , cfgJsonLogFile = Nothing
+  , cfgLogSuffix = Nothing
   }
 
 
@@ -114,3 +121,31 @@ sendRequest Conn { .. } req =
                     writeTQueue connRequests (req snum))
 
      atomically (takeTMVar var)
+
+-- Logging Helpers -------------------------------------------------------------
+
+type LoggingContext = (UTCTime, Maybe Handle)
+
+initLogging :: Maybe FilePath -> IO LoggingContext
+initLogging mfp = do
+  t0 <- getCurrentTime
+  t0local <- utcToLocalZonedTime t0
+  let startFmt = formatTime defaultTimeLocale "%Y-%m-%d-%H%M%S" t0local
+  mLog <- case mfp of
+            Nothing -> return Nothing
+            Just logSuffix -> do
+              h <- openFile (startFmt ++ "-" ++ logSuffix) WriteMode
+              hPutStrLn h startFmt
+              return (Just h)
+  return (t0, mLog)
+
+writeLoggingLBS :: MonadSnap m => LoggingContext -> LBS.ByteString -> m ()
+writeLoggingLBS (_, Nothing) lbs = Snap.writeLBS lbs
+writeLoggingLBS (t0, Just h) lbs = do
+  liftIO (do
+    t <- getCurrentTime
+    let now = takeWhile (/= 's') (show (diffUTCTime t t0))
+    hPutStr h (now ++ ":")
+    LBS.hPut h (LBS.append lbs "\\n")
+    hFlush h)
+  Snap.writeLBS lbs
