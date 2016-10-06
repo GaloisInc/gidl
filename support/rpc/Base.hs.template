@@ -27,12 +27,18 @@ data Config = Config { cfgPort :: !Int
                        -- ^ Content to be served off of the root, relative to
                        -- the directory that the server was started in
 
+                     , cfgJsonLogFile :: Maybe FilePath
+                       -- ^ File to log JSON responses to
                      } deriving (Show)
 
 -- | A default @Config@ value that will produce a server that runs on port 8080,
--- and serves no static content.
+-- serves no static content, and does no logging.
 defaultConfig :: Config
-defaultConfig  = Config { cfgPort = 8080, cfgStaticDir = Nothing }
+defaultConfig  = Config {
+    cfgPort = 8080
+  , cfgStaticDir = Nothing
+  , cfgJsonLogFile = Nothing
+  }
 
 
 -- | Spawn a snap server, and run the given RPC action.

@@ -43,7 +43,7 @@ rpcBackend iis pkgName nsStr =
   namespace  = strToNs nsStr
 
   buildDeps  = [ "cereal", "QuickCheck", "snap-core", "snap-server", "stm"
-               , "aeson", "transformers", "containers" ]
+               , "aeson", "transformers", "containers", "bytestring" ]
 
   modules    = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
 
@@ -189,7 +189,8 @@ webServerImports :: Bool -> Doc
 webServerImports hasConsumer = stack $
   [ text "import           Control.Monad (msum)" | hasConsumer ] ++
   [ text "import           Data.Aeson (decode)"  | hasConsumer ] ++
-  [ text "import qualified Snap.Core as Snap"
+  [ text "import qualified Data.ByteString.Lazy as LBS"
+  , text "import qualified Snap.Core as Snap"
   , text "import           Control.Concurrent (forkIO)"
   , text "import           Control.Concurrent.STM"
   , text "import           Control.Monad (forever)"
@@ -248,6 +249,14 @@ runServerDef hasConsumer useMgr iface =
                   ++ [ text ")" ]                           | useMgr      ]
        ++ [ text "conn <- newConn output" <+> input'
                   <+> seqNumGetter                          | hasConsumer ]
+       ++ [ hang 6 (text "let writeLBS lbs =" </>
+              hang 2 (text "case cfgJsonLogFile cfg of" </>
+                text "Nothing -> Snap.writeLBS lbs" </>
+                hang 2 (text "Just logFile ->" </> doStmts [
+                    text "liftIO $ LBS.appendFile logFile (LBS.append lbs \"\\n\")"
+                  , text "Snap.writeLBS lbs"
+                  ])))
+          ]
        ++ [ text "runServer cfg $ Snap.route" </> routesDef               ]
 
   (input',defInput)
@@ -301,7 +310,7 @@ readStream state name = nest 2 $ text "Snap.method Snap.GET $"
   </> doStmts
     [ text "x <- liftIO (atomically (readTSampleVar" <+> svar <> text "))"
     , text "let e = case x of Just v -> encode v; Nothing -> encode Null"
-    , text "Snap.writeLBS e"
+    , text "writeLBS e"
     ]
   where
   svar = parens (fieldName name <+> state)
@@ -320,7 +329,7 @@ readAttr (attrname, (AttrMethod _ t)) suffix msg =
                      <+> dot <+> text "SequenceNum.SequenceNum"
 
     , text "Snap.modifyResponse $ Snap.setContentType \"application/json\""
-    , text "Snap.writeLBS (encode resp)"
+    , text "writeLBS (encode resp)"
     ]
   where
   resp@(Message _ (StructType resp_tyname _)) = getResponseMessage attrname t
