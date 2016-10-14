@@ -6,6 +6,9 @@ import Data.Char (isSpace,toUpper)
 import Gidl.Types
     (Atom(..),Type(..),PrimType(..))
 
+import Prelude ()
+import Prelude.Compat
+
 import Text.PrettyPrint.Mainland
 
 type Namespace = [String]

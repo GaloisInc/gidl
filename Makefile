@@ -11,6 +11,7 @@ test: haskell-backend-test
 test: ivory-backend-test
 test: tower-backend-test
 test: rpc-backend-test
+test: elm-backend-test
 
 haskell-backend-test: default
 	stack exec -- gidl -b haskell \

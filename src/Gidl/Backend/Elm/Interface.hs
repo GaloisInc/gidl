@@ -24,6 +24,9 @@ import Gidl.Types (Type(..))
 import Ivory.Artifact
     (Artifact,artifactPath,artifactText)
 
+import Prelude ()
+import Prelude.Compat
+
 import Text.PrettyPrint.Mainland
 
 interfaceModule :: ModulePath -> Interface -> Artifact
