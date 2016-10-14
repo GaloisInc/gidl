@@ -20,9 +20,13 @@ import Gidl.Types (childTypes)
 import Ivory.Artifact (Artifact,artifactPath)
 import Ivory.Artifact.Template (artifactCabalFileTemplate)
 
+import System.FilePath (pathSeparator)
+
 elmBackend :: [Interface] -> String -> String -> [Artifact]
 elmBackend iis pkgName nsStr =
-    elmPackageJson pkgName : map (artifactPath "src") sourceMods
+      elmMakefile nsStr
+    : elmPackageJson pkgName
+    : map (artifactPath "src") sourceMods
   where
     ns = strToNs nsStr
     sourceMods = tmods ++ imods ++ [elmUtilsModule ns]
@@ -37,6 +41,7 @@ elmBackend iis pkgName nsStr =
     imods = [ interfaceModule (ns ++ ["Interface"]) i
             | i <- iis
             ]
+
 elmUtilsModule :: Namespace -> Artifact
 elmUtilsModule ns =
   artifactPath (foldr1 (\ p rest -> p ++ "/" ++ rest) ns) $
@@ -46,6 +51,17 @@ elmUtilsModule ns =
 
 elmPackageJson :: String -> Artifact
 elmPackageJson pkgName =
-  artifactCabalFileTemplate P.getDataDir "support/elm/elm-package.json.template" env
+  artifactCabalFileTemplate
+    P.getDataDir
+    "support/elm/elm-package.json.template"
+    env
   where
   env = [ ("package_name", pkgName) ]
+
+elmMakefile :: String -> Artifact
+elmMakefile nsStr =
+  artifactCabalFileTemplate P.getDataDir "support/elm/Makefile.template" env
+  where
+  env = [ ( "package_root"
+          , map (\c -> if c == '.' then pathSeparator else c) nsStr)
+        ]

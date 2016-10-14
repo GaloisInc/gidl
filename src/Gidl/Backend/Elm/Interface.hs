@@ -77,9 +77,11 @@ clientMessageTypes i =
 
 -- | Produce the body of the module for an 'Interface'
 clientIfDecl :: ModulePath -> String -> String -> [ClientMessage] -> Doc
-clientIfDecl _ _ interfaceName [] =
-    "-- Cannot define client interface for"
-    <+> text interfaceName <+> ": schema is empty"
+clientIfDecl _ _ interfaceName [] = stack $
+    [ "{-| Cannot define client for" <+> text interfaceName <> colon
+      <+> "interface is empty -}"
+    , "unused = unused"
+    ]
 clientIfDecl tmp rawName interfaceName ms = stack $
     [ -- client interface
       "{-| Client interface for" <+> text interfaceName <+> "backed by a"

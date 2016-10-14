@@ -10,6 +10,7 @@ cabal-version:       >=1.10
 
 data-files: support/elm/Utils.elm.template,
             support/elm/elm-package.json.template,
+            support/elm/Makefile.template,
             support/ivory/Unpack.hs.template,
             support/ivory/CodeGen.hs.template,
             support/ivory/Makefile.template,
