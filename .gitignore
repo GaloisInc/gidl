@@ -2,3 +2,5 @@ dist
 cabal.sandbox.config
 .cabal-sandbox/
 .stack-work
+/tests/gidl-elm-backend-test
+TAGS

@@ -8,7 +8,10 @@ copyright:           2015 Galois Inc
 build-type:          Simple
 cabal-version:       >=1.10
 
-data-files: support/ivory/Unpack.hs.template,
+data-files: support/elm/Utils.elm.template,
+            support/elm/elm-package.json.template,
+            support/elm/Makefile.template,
+            support/ivory/Unpack.hs.template,
             support/ivory/CodeGen.hs.template,
             support/ivory/Makefile.template,
             support/tower/CodeGen.hs.template,
@@ -28,6 +31,10 @@ library
                        Gidl.Types.AST,
                        Gidl.Types.Base,
                        Gidl.Backend.Cabal,
+                       Gidl.Backend.Elm,
+                       Gidl.Backend.Elm.Common,
+                       Gidl.Backend.Elm.Interface,
+                       Gidl.Backend.Elm.Type,
                        Gidl.Backend.Haskell,
                        Gidl.Backend.Haskell.Interface,
                        Gidl.Backend.Haskell.Test,
