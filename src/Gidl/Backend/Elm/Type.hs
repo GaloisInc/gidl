@@ -99,7 +99,7 @@ typeDecl mp t@(PrimType (Newtype _ n)) = stack
   where
   tname = text (cappedName t)
 
-typeDecl _  t@(PrimType (EnumType _ _ es)) = stack
+typeDecl _  t@(PrimType (EnumType _ _ es)) = stack $
   [ -- the type definition itself
     text "type" <+> tname
   , indent 2 $ encloseStack equals empty "|"
@@ -107,15 +107,9 @@ typeDecl _  t@(PrimType (EnumType _ _ es)) = stack
       | (i, _) <- es ]
     -- JSON encoder
   , "encode" <+> colon <+> tname <+> "->" <+> "Json.Encode.Value"
-  , "encode" <+> "x" <+> equals
-  , indent 2 $ stack [
-        "case x of"
-      , indent 2 $ stack
-          [ text (toCapped i) <+> "->"
-            <+> "Json.Encode.string" <+> dquotes (text (toCapped i))
-          | (i, _) <- es ]
-      ]
-  , empty
+  ] ++
+  encodeBody ++
+  [ empty
     -- JSON decoder
   , "decode" <+> colon <+> "Json.Decode.Decoder" <+> tname
   , "decode" <+> equals
@@ -140,6 +134,19 @@ typeDecl _  t@(PrimType (EnumType _ _ es)) = stack
   , "init" <+> equals <+> text (toCapped firstConstr)
   ]
   where
+  -- Aeson encodes sum types with one variant as `[]`
+  encodeBody =
+    case es of
+      [_] -> [ "encode" <+> "x" <+> equals <+> "Json.Encode.list []" ]
+      _ -> [ "encode" <+> "x" <+> equals
+           , indent 2 $ stack [
+               "case x of"
+               , indent 2 $ stack
+                 [ text (toCapped i) <+> "->"
+                   <+> "Json.Encode.string" <+> dquotes (text (toCapped i))
+                 | (i, _) <- es ]
+               ]
+           ]
   tname = text (cappedName t)
   firstConstr =
     case es of
