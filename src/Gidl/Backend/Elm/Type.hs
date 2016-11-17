@@ -5,8 +5,7 @@ import Data.List (intercalate,nub)
 
 import Gidl.Backend.Elm.Common
 
-import Gidl.Types
-    (Atom(..),Type(..),PrimType(..),typeLeaves)
+import Gidl.Types (Type(..),PrimType(..),typeLeaves)
 
 import Ivory.Artifact
     (Artifact,artifactPath,artifactText)
@@ -154,20 +153,3 @@ typeDecl _  t@(PrimType (EnumType _ _ es)) = stack $
       (i, _) : _ -> i
 
 typeDecl _ t = error ("typeDecl: cannot create Elm decl for type " ++ show t)
-
--- | Look up the @init@ name for a 'Type'
-typeInit :: ModulePath -> Type -> Doc
-typeInit mp (PrimType p) = primTypeInit mp p
-typeInit mp t =
-  mkQName mp (cappedName t) <> dot <> "init"
-
-primTypeInit :: ModulePath -> PrimType -> Doc
-primTypeInit mp (Newtype tn _) =
-  mkQName mp (toCapped tn) <> dot <> "init"
-primTypeInit _  (EnumType "bool_t" _ _) = "False"
-primTypeInit mp (EnumType tn _ _) =
-  mkQName mp (toCapped tn) <> dot <> "init"
-primTypeInit _  (AtomType (AtomInt _)) = "0"
-primTypeInit _  (AtomType (AtomWord _)) = "0"
-primTypeInit _  (AtomType AtomFloat) = "0"
-primTypeInit _  (AtomType AtomDouble) = "0"

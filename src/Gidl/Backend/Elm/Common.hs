@@ -14,17 +14,20 @@ import Text.PrettyPrint.Mainland
 type Namespace = [String]
 type ModulePath = [String]
 
+-- | Convert @some_name@ to @someName@, dropping any trailing @_t@
+toCamel :: String -> String
+toCamel ('_':'t':[]) = []
+toCamel ('_':[]) = []
+toCamel ('_':a:as) = (toUpper a) : toCamel as
+toCamel (a:as) = a : toCamel as
+toCamel [] = []
+
 -- | Convert @some_name@ to @SomeName@, dropping any trailing @_t@
 toCapped :: String -> String
-toCapped = first_cap . u_to_camel
+toCapped = first_cap . toCamel
   where
   first_cap (s:ss) = (toUpper s) : ss
   first_cap []     = []
-  u_to_camel ('_':'t':[]) = []
-  u_to_camel ('_':[]) = []
-  u_to_camel ('_':a:as) = (toUpper a) : u_to_camel as
-  u_to_camel (a:as) = a : u_to_camel as
-  u_to_camel [] = []
 
 -- | Get the 'toCapped' name of a 'Type'
 cappedName :: Type -> String
@@ -114,6 +117,23 @@ primTypeDecoder _  (AtomType (AtomInt _)) = "Json.Decode.int"
 primTypeDecoder _  (AtomType (AtomWord _)) = "Json.Decode.int"
 primTypeDecoder _  (AtomType AtomFloat) = "Json.Decode.float"
 primTypeDecoder _  (AtomType AtomDouble) = "Json.Decode.float"
+
+-- | Look up the @init@ name for a 'Type'
+typeInit :: ModulePath -> Type -> Doc
+typeInit mp (PrimType p) = primTypeInit mp p
+typeInit mp t =
+  mkQName mp (cappedName t) <> dot <> "init"
+
+primTypeInit :: ModulePath -> PrimType -> Doc
+primTypeInit mp (Newtype tn _) =
+  mkQName mp (toCapped tn) <> dot <> "init"
+primTypeInit _  (EnumType "bool_t" _ _) = "False"
+primTypeInit mp (EnumType tn _ _) =
+  mkQName mp (toCapped tn) <> dot <> "init"
+primTypeInit _  (AtomType (AtomInt _)) = "0"
+primTypeInit _  (AtomType (AtomWord _)) = "0"
+primTypeInit _  (AtomType AtomFloat) = "0"
+primTypeInit _  (AtomType AtomDouble) = "0"
 
 -- | Splits up a dot-separated string into components
 strToNs :: String -> [String]

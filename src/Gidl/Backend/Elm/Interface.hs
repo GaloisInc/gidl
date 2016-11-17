@@ -83,8 +83,25 @@ clientIfDecl _ _ interfaceName [] = stack $
     , "unused = unused"
     ]
 clientIfDecl tmp rawName interfaceName ms = stack $
-    [ -- client interface
-      "{-| Client interface for" <+> text interfaceName <+> "backed by a"
+    [ "{-| A type containing all of the fields of the interface,"
+      <+> "useful for keeping state in a model -}"
+    , "type alias" <+> text interfaceName <+> equals
+    , indent 2 $ encloseStack lbrace rbrace comma $
+        [ text (toCamel n) <+> colon <+> elmTypeQName tmp t
+        | (GetMessage n t) <- ms
+        ]
+    , empty
+    , "{-|" <+> text interfaceName
+      <+> "initialized with (arbitrary) default values -}"
+    , "init" <+> colon <+> text interfaceName
+    , "init" <+> equals
+    , indent 2 $ encloseStack lbrace rbrace comma $
+        [ text (toCamel n) <+> equals <+> typeInit tmp t
+        | (GetMessage n t) <- ms
+        ]
+    , empty
+      -- client interface
+    , "{-| Client interface for" <+> text interfaceName <+> "backed by a"
       <+> "Gidl-generated RPC server -}"
     , "type alias" <+> "Client" <+> "msg" <+> equals
     , indent 2 $ encloseStack lbrace rbrace comma $
@@ -149,9 +166,30 @@ clientIfDecl tmp rawName interfaceName ms = stack $
     , "{-| The `defaultHandler` does nothing for any messages;"
       <+> "override the operations you need with your logic -}"
     , "defaultHandler" <+> colon <+> "Handler" <+> "model" <+> "msg"
-    , "defaultHandler" <+> equals
+    , "defaultHandler" <+> equals <+> "updatingHandler (\\m _ -> m)"
+    , empty
+      -- model-updating handler
+    , "{-| The `updatingHandler` updates a field in your model when"
+      <+> "new data arrives. You must provide a suitable update function"
+      <+> "that updates the" <+> text interfaceName <+> "in your model -}"
+    , "updatingHandler" <+> colon
+      <+> parens
+        ("model"
+          <+> "->"
+          <+> parens (text interfaceName <+> "->" <+> text interfaceName)
+          <+> "->"
+          <+> "model")
+      <+> "->" <+> "Handler" <+> "model" <+> "msg"
+    , "updatingHandler" <+> "upd" <+> equals
     , indent 2 $ encloseStack lbrace rbrace comma $
-        [ handleGet n <+> equals <+> "\\_ m -> (m, Cmd.none)"
+        [ handleGet n <+> equals
+          <+> "\\x m ->"
+          <+> parens
+            ("upd m"
+             <+> parens
+               ("\\i ->" <+> braces
+                  ("i |" <+> text (toCamel n) <+> equals <+> "x"))
+             <> comma <+> "Cmd.none")
         | (GetMessage n _) <- ms ] ++
         [ handleSet n <+> equals <+> "\\m -> (m, Cmd.none)"
         | (SetMessage n _) <- ms ]
