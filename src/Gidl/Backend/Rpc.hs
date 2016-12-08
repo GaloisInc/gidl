@@ -43,7 +43,8 @@ rpcBackend iis pkgName nsStr =
   namespace  = strToNs nsStr
 
   buildDeps  = [ "cereal", "QuickCheck", "snap-core", "snap-server", "stm"
-               , "aeson", "transformers", "containers", "bytestring", "time" ]
+               , "aeson", "transformers", "containers", "bytestring", "time"
+               , "time-locale-compat" ]
 
   modules    = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
 
