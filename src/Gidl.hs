@@ -18,6 +18,7 @@ import Text.Show.Pretty
 import Ivory.Artifact
 import Gidl.Parse
 import Gidl.Interface
+import Gidl.Backend.Elm (elmBackend)
 import Gidl.Backend.Haskell
 import Gidl.Backend.Ivory
 import Gidl.Backend.Rpc (rpcBackend)
@@ -47,6 +48,7 @@ data Backend
   | IvoryBackend
   | TowerBackend
   | RpcBackend
+  | ElmBackend
   deriving (Eq, Show)
 
 data Opts = Opts
@@ -82,6 +84,7 @@ setBackend b = case map toUpper b of
   "IVORY"       -> success (\o -> o { backend = IvoryBackend })
   "TOWER"       -> success (\o -> o { backend = TowerBackend })
   "HASKELL-RPC" -> success (\o -> o { backend = RpcBackend })
+  "ELM"         -> success (\o -> o { backend = ElmBackend })
   _             -> invalid e
   where e = "\"" ++ b ++ "\" is not a valid backend.\n"
           ++ "Supported backends: haskell, ivory, tower, haskell-rpc"
@@ -188,6 +191,7 @@ run = do
                                                 "ivory-tower-stm32"
                return (towerBackend ivoryAbs towerAbs ivoryTowerSTM32Abs)
              RpcBackend -> return rpcBackend
+             ElmBackend -> return elmBackend
       artifactBackend opts (b interfaces (packagename opts) (namespace opts))
 
   where

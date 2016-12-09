@@ -47,16 +47,6 @@ consumerMessages (attrname, (AttrMethod perm tr)) =
   [ setRequestMessage attrname tr | writable perm ] ++
   [ getRequestMessage attrname tr | readable perm ]
 
-readable :: Perm -> Bool
-readable Read = True
-readable ReadWrite = True
-readable _ = False
-
-writable :: Perm -> Bool
-writable Write = True
-writable ReadWrite = True
-writable _ = False
-
 setRequestMessage :: MethodName -> Type -> Message
 setRequestMessage n t = Message (n ++ "_set_req") (sequenceNumStruct t)
 

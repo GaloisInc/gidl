@@ -43,7 +43,8 @@ rpcBackend iis pkgName nsStr =
   namespace  = strToNs nsStr
 
   buildDeps  = [ "cereal", "QuickCheck", "snap-core", "snap-server", "stm"
-               , "aeson", "transformers", "containers" ]
+               , "aeson", "transformers", "containers", "bytestring", "time"
+               , "time-locale-compat" ]
 
   modules    = [ filePathToPackage (artifactFileName m) | m <- sourceMods ]
 
@@ -248,6 +249,7 @@ runServerDef hasConsumer useMgr iface =
                   ++ [ text ")" ]                           | useMgr      ]
        ++ [ text "conn <- newConn output" <+> input'
                   <+> seqNumGetter                          | hasConsumer ]
+       ++ [ text "logCtx <- initLogging (cfgLogSuffix cfg)"               ]
        ++ [ text "runServer cfg $ Snap.route" </> routesDef               ]
 
   (input',defInput)
@@ -301,7 +303,7 @@ readStream state name = nest 2 $ text "Snap.method Snap.GET $"
   </> doStmts
     [ text "x <- liftIO (atomically (readTSampleVar" <+> svar <> text "))"
     , text "let e = case x of Just v -> encode v; Nothing -> encode Null"
-    , text "Snap.writeLBS e"
+    , text "writeLoggingLBS logCtx e"
     ]
   where
   svar = parens (fieldName name <+> state)
@@ -320,7 +322,7 @@ readAttr (attrname, (AttrMethod _ t)) suffix msg =
                      <+> dot <+> text "SequenceNum.SequenceNum"
 
     , text "Snap.modifyResponse $ Snap.setContentType \"application/json\""
-    , text "Snap.writeLBS (encode resp)"
+    , text "writeLoggingLBS logCtx (encode resp)"
     ]
   where
   resp@(Message _ (StructType resp_tyname _)) = getResponseMessage attrname t

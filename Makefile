@@ -11,6 +11,7 @@ test: haskell-backend-test
 test: ivory-backend-test
 test: tower-backend-test
 test: rpc-backend-test
+test: elm-backend-test
 
 haskell-backend-test: default
 	stack exec -- gidl -b haskell \
@@ -65,10 +66,23 @@ rpc-backend-test: default
 rpc-backend-test-clean:
 	-rm -rf tests/gidl-rpc-backend-test
 
+elm-backend-test: default
+	stack exec -- gidl -b elm \
+			   --debug \
+			   -i tests/example.gidl \
+			   -o tests/gidl-elm-backend-test \
+			   -p gidl-elm-backend-test \
+			   -n Gidl.Test
+	make -C tests/gidl-elm-backend-test
+
+elm-backend-test-clean:
+	-rm -rf tests/gidl-elm-backend-test
+
 clean: ivory-backend-test-clean
 clean: tower-backend-test-clean
 clean: haskell-backend-test-clean
 clean: rpc-backend-test-clean
+clean: elm-backend-test-clean
 
 TRAVIS_STACK ?= stack --no-terminal --system-ghc --skip-ghc-check
 

@@ -28,4 +28,12 @@ data Perm
   | ReadWrite
   deriving (Eq, Show)
 
+readable :: Perm -> Bool
+readable Read = True
+readable ReadWrite = True
+readable _ = False
 
+writable :: Perm -> Bool
+writable Write = True
+writable ReadWrite = True
+writable _ = False

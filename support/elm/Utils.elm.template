@@ -1,0 +1,7 @@
+module $module_path$.Utils exposing (..)
+
+import Json.Decode as Json
+
+thenMap : Json.Decoder (a -> b) -> Json.Decoder a -> Json.Decoder b
+thenMap f aDecoder =
+  f `Json.andThen` (\\f' -> f' `Json.map` aDecoder)
