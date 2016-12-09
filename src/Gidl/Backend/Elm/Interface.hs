@@ -12,6 +12,9 @@
 -- receive them.
 module Gidl.Backend.Elm.Interface where
 
+import Prelude ()
+import Prelude.Compat
+
 import Data.Char (toUpper)
 import Data.List (intercalate,nub)
 
