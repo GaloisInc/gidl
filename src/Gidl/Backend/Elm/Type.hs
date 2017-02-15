@@ -23,7 +23,8 @@ typeModule ns t =
     , empty
     , stack (imports ++ [
                  "import" <+> mkQName ns "Utils" <+> "as Utils"
-               , "import Json.Decode exposing ((:=))"
+               , "import Json.Decode"
+               , "import Json.Decode.Pipeline exposing (required)"
                , "import Json.Encode"
                ])
     , empty
@@ -57,15 +58,10 @@ typeDecl mp t@(StructType _ ss) = stack
   , empty
     -- JSON decoder
   , "decode" <+> colon <+> "Json.Decode.Decoder" <+> tname
-  , "decode" <+> equals <+> tname
-  , case ss of
-      [] -> empty
-      (i0, st0) : ss' -> indent 2 $ stack $
-        [ backquotes "Json.Decode.map" <+> parens
-            (dquotes (text i0) <+> ":=" <+> typeDecoder mp st0) ] ++
-        [ backquotes "Utils.thenMap" <+> parens
-            (dquotes (text i) <+> ":=" <+> typeDecoder mp st)
-        | (i,st) <- ss' ]
+  , "decode" <+> equals <+> "Json.Decode.Pipeline.decode" <+> tname
+  , indent 2 $ stack $
+      [ "|>" <+> parens ("required" <+> dquotes (text i) <+> typeDecoder mp st)
+      | (i,st) <- ss ]
   , empty
     -- arbitrary "initialized" value
   , "{-|" <+> tname <+> "initialized with (arbitrary) default values -}"
@@ -113,7 +109,7 @@ typeDecl _  t@(PrimType (EnumType _ _ es)) = stack $
   , "decode" <+> colon <+> "Json.Decode.Decoder" <+> tname
   , "decode" <+> equals
   , indent 2 $ stack [
-        "Json.Decode.customDecoder" <+> "Json.Decode.string"
+        "Utils.customDecoder" <+> "Json.Decode.string"
         <+> lparen <> "\\tag ->"
       , indent 2 $ stack [
             "case tag of"

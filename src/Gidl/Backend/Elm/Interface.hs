@@ -47,17 +47,19 @@ interfaceModule mp i@(Interface rawName _ _) =
   tm mname = mconcat $ punctuate dot
                      $ map text (tmp ++ [mname])
   tmp = typepath mp ++ ["Types"]
-    where typepath = reverse . drop 1 . reverse
+  typepath = reverse . drop 1 . reverse
+  utils = mconcat $ punctuate dot $ map text (typepath mp ++ ["Utils"])
 
   typeimports = map (\a -> importDecl tm a)
               $ nub
               $ map importType
               $ clientMessageTypes i
 
-  extraimports = [ "import Http"
+  extraimports = [ "import" <+> utils <+> "as Utils"
+                 , "import Http"
                  , "import Json.Decode"
                  , "import Json.Encode"
-                 , "import Task" ]
+                 ]
 
 data ClientMessage
   = GetMessage String Type
@@ -136,21 +138,22 @@ clientIfDecl tmp rawName interfaceName ms = stack $
     , "client" <+> "err" <+> "ok" <+> "url" <+> equals
     , indent 2 $ encloseStack lbrace rbrace comma $
         [ getFieldName n <+> equals
-          <+> "Task.perform" <+> "err"
+          <+> "Utils.send_" <+> "err"
           <+> parens ("ok" <+> "<<" <+> getResponseConstr n)
-          <+> parens ("Http.get" <+> typeDecoder tmp t
-            <+> parens ("url" <+> "++"
-              <+> dquotes ("/" <> text rawName <> "/" <> text n)))
-        | (GetMessage n t) <- ms ] ++
-        [ setFieldName n <+> equals <+> "\\x ->"
-          <+> "Task.perform" <+> "err"
-          <+> parens ("ok" <+> "<<" <+> "always" <+> setResponseConstr n)
-          <+> parens ("Http.post" <+> parens ("Json.Decode.succeed" <+> "()")
+          <+> parens ("Utils.get_"
             <+> parens ("url" <+> "++"
               <+> dquotes ("/" <> text rawName <> "/" <> text n))
-            <+> parens ("Http.string"
-              <+> parens ("Json.Encode.encode 1000"
-                <+> parens (typeEncoder tmp t <+> "x"))))
+            <+> typeDecoder tmp t)
+        | (GetMessage n t) <- ms ] ++
+        [ setFieldName n <+> equals <+> "\\x ->"
+          <+> "Utils.send_" <+> "err"
+          <+> parens ("ok" <+> "<<" <+> "always" <+> setResponseConstr n)
+          <+> parens ("Utils.post_"
+            <+> parens ("url" <+> "++"
+              <+> dquotes ("/" <> text rawName <> "/" <> text n))
+            <+> parens ("Http.jsonBody"
+              <+> parens (typeEncoder tmp t <+> "x"))
+            <+> parens ("Json.Decode.succeed" <+> "()"))
         | (SetMessage n t) <- ms
         ]
     , empty
