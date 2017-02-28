@@ -10,25 +10,25 @@ send_ err ok req =
                 Err e -> err e
   in Http.send k req
 
-get_ url decoder =
+get_ to url decoder =
   Http.request
     { method = "GET"
     , headers = []
     , url = url
     , body = Http.emptyBody
     , expect = Http.expectJson decoder
-    , timeout = Just (1 * Time.second)
+    , timeout = Just to
     , withCredentials = False
     }
 
-post_ url body decoder =
+post_ to url body =
   Http.request
     { method = "POST"
     , headers = []
     , url = url
     , body = body
-    , expect = Http.expectJson decoder
-    , timeout = Just (1 * Time.second)
+    , expect = Http.expectStringResponse (\\_ -> Ok ())
+    , timeout = Just to
     , withCredentials = False
     }
 

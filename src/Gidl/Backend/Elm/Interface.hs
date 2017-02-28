@@ -59,6 +59,7 @@ interfaceModule mp i@(Interface rawName _ _) =
                  , "import Http"
                  , "import Json.Decode"
                  , "import Json.Encode"
+                 , "import Time"
                  ]
 
 data ClientMessage
@@ -85,7 +86,7 @@ clientIfDecl :: ModulePath -> String -> String -> [ClientMessage] -> Doc
 clientIfDecl _ _ interfaceName [] = stack $
     [ "{-| Cannot define client for" <+> text interfaceName <> colon
       <+> "interface is empty -}"
-    , "unused = unused"
+      , "unused = True"
     ]
 clientIfDecl tmp rawName interfaceName ms = stack $
     [ "{-| A type containing all of the fields of the interface,"
@@ -131,16 +132,17 @@ clientIfDecl tmp rawName interfaceName ms = stack $
     , "{-| Given an error handler, a builder for your `msg` type, and a"
       <+> "base URL for the RPC server, build a `Client` -}"
     , "client" <+> colon
+      <+> "Time.Time" <+> "->"
       <+> "(Http.Error -> msg)" <+> "->"
       <+> parens ("Response" <+> "->" <+> "msg") <+> "->"
       <+> "String" <+> "->"
       <+> "Client" <+> "msg"
-    , "client" <+> "err" <+> "ok" <+> "url" <+> equals
+    , "client" <+> "to" <+> "err" <+> "ok" <+> "url" <+> equals
     , indent 2 $ encloseStack lbrace rbrace comma $
         [ getFieldName n <+> equals
           <+> "Utils.send_" <+> "err"
           <+> parens ("ok" <+> "<<" <+> getResponseConstr n)
-          <+> parens ("Utils.get_"
+          <+> parens ("Utils.get_" <+> "to"
             <+> parens ("url" <+> "++"
               <+> dquotes ("/" <> text rawName <> "/" <> text n))
             <+> typeDecoder tmp t)
@@ -148,12 +150,11 @@ clientIfDecl tmp rawName interfaceName ms = stack $
         [ setFieldName n <+> equals <+> "\\x ->"
           <+> "Utils.send_" <+> "err"
           <+> parens ("ok" <+> "<<" <+> "always" <+> setResponseConstr n)
-          <+> parens ("Utils.post_"
+          <+> parens ("Utils.post_" <+> "to"
             <+> parens ("url" <+> "++"
               <+> dquotes ("/" <> text rawName <> "/" <> text n))
             <+> parens ("Http.jsonBody"
-              <+> parens (typeEncoder tmp t <+> "x"))
-            <+> parens ("Json.Decode.succeed" <+> "()"))
+              <+> parens (typeEncoder tmp t <+> "x")))
         | (SetMessage n t) <- ms
         ]
     , empty
