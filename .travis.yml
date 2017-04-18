@@ -33,7 +33,7 @@ before_install:
   - stack --version
   - arm-none-eabi-gcc --version
   # Set up Elm
-  - npm install -g elm@0.17.1
+  - npm install -g elm@0.18.0
 install:
   # Check out depenendency repos, then check out the branch that
   # matches the current branch name in this repo. If one doesn't
