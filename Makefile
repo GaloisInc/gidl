@@ -84,8 +84,9 @@ clean: haskell-backend-test-clean
 clean: rpc-backend-test-clean
 clean: elm-backend-test-clean
 
-TRAVIS_STACK ?= stack --no-terminal --system-ghc --skip-ghc-check
+TRAVIS_STACK ?= stack --no-terminal
 
 travis-test:
+	$(TRAVIS_STACK) setup
 	$(TRAVIS_STACK) build --test --no-run-tests --haddock --no-haddock-deps --pedantic
 	make test
