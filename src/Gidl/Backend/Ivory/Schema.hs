@@ -1,6 +1,6 @@
+{-# LANGUAGE CPP #-}
 
 module Gidl.Backend.Ivory.Schema where
-
 
 import Data.Monoid
 import Data.List (intercalate, nub)
@@ -10,6 +10,9 @@ import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Ivory.Types
 import Ivory.Artifact
+#if MIN_VERSION_mainland_pretty(0,6,0)
+import Text.PrettyPrint.Mainland.Class
+#endif
 import Text.PrettyPrint.Mainland
 
 schemaModule :: [String] -> Interface -> Schema -> Artifact

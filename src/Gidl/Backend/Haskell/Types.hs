@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 module Gidl.Backend.Haskell.Types where
 
@@ -6,6 +7,9 @@ import Data.List (intercalate, nub)
 import Data.Char (toUpper)
 import Gidl.Types
 import Ivory.Artifact
+#if MIN_VERSION_mainland_pretty(0,6,0)
+import Text.PrettyPrint.Mainland.Class
+#endif
 import Text.PrettyPrint.Mainland
 
 -- invariant: only make a typeModule from a StructType, NewtypeType, or EnumType

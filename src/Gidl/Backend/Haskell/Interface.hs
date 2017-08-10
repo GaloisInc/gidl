@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 module Gidl.Backend.Haskell.Interface where
 
@@ -11,6 +12,9 @@ import Gidl.Interface
 import Gidl.Schema
 import Gidl.Backend.Haskell.Types
 import Ivory.Artifact
+#if MIN_VERSION_mainland_pretty(0,6,0)
+import Text.PrettyPrint.Mainland.Class
+#endif
 import Text.PrettyPrint.Mainland
 
 interfaceModule :: Bool -> [String] -> Interface -> Artifact
