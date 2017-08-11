@@ -108,6 +108,7 @@ stackfile ivoryRepo towerRepo ivoryTowerSTM32Repo = artifactText "stack.yaml" $
     , text "  - language-c-quote-0.11.6"
     , text "  - mainland-pretty-0.4.1.4"
     , text "  - symbol-0.2.4"
+    , text "  - th-abstraction-0.2.5.0"
     , empty
     , text "install-ghc: true"
     , empty
